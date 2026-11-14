@@ -44,8 +44,11 @@ window.Motion = (() => {
 
   const comps = [];
   let last = performance.now();
+  let rafId = 0;
 
   function loop(now) {
+    rafId = 0;
+    if (document.hidden) return;
     const dt = Math.min((now - last) / 1000, 1 / 30) * timeScale;
     last = now;
     for (let i = timers.length - 1; i >= 0; i--) {
@@ -67,9 +70,17 @@ window.Motion = (() => {
       for (let i = 0; i < live.length; i++) live[i].frame(subDt);
     }
     for (let i = 0; i < live.length; i++) live[i].render();
-    requestAnimationFrame(loop);
+    rafId = requestAnimationFrame(loop);
   }
-  requestAnimationFrame(loop);
+
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden && !rafId) {
+      last = performance.now();
+      rafId = requestAnimationFrame(loop);
+    }
+  });
+
+  rafId = requestAnimationFrame(loop);
 
   return {
     S,

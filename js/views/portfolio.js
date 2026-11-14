@@ -416,7 +416,10 @@ export function mountPortfolio(container) {
     const r = waveEl.getBoundingClientRect();
     waveFocus.t = clamp((e.clientX - r.left) / Math.max(1, r.width), -0.05, 1.05);
   });
-  waveEl.addEventListener('pointerleave', () => { waveHover = false; });
+  waveEl.addEventListener('pointerleave', () => {
+    waveHover = false;
+    waveFocus.t = 0.25;
+  });
 
   // ---- 3. Scramble Text ----
   const scrambleEl = container.querySelector('#scramble-line');
@@ -904,18 +907,26 @@ export function mountPortfolio(container) {
   store.on('portfolio-mag-page', idx => setMagPage(Number(idx) || 0));
   renderSpread();
 
-  // ---- Active-only rAF simulation loop (Zero CPU when view is hidden) ----
+  // ---- Active-only rAF simulation loop (Zero CPU when idle or hidden) ----
+  const isSettled = (s, eps = 0.002) => Math.abs(s.x - s.t) < eps && Math.abs(s.v) < eps;
+  let lastPortfolioIdle = false;
+
   register({
     active: () => store.state.activeView === 'portfolio',
     frame(dt) {
-      waveClock += dt;
       scrClock += dt;
       step(rollWidth, dt);
       liveWords.forEach(w => w.letters.forEach(l => step(l.s, dt)));
 
-      if (!waveHover) waveFocus.t = 0.5 + 0.42 * Math.sin(waveClock * 1.15);
       step(waveFocus, dt);
-      waveLetters.forEach(l => step(l.w, dt));
+      const nWave = Math.max(1, waveLetters.length - 1);
+      waveLetters.forEach((l, i) => {
+        const c = i / nWave;
+        const d = (c - waveFocus.x) / SPREAD;
+        const g = Math.exp(-d * d);
+        l.w.t = LIGHT_W + (BOLD_W - LIGHT_W) * g;
+        step(l.w, dt);
+      });
 
       step(followS, dt);
       step(avPop, dt);
@@ -929,6 +940,26 @@ export function mountPortfolio(container) {
       deckCards.forEach(c => { step(c.x, dt); step(c.y, dt); step(c.d, dt); });
     },
     render() {
+      const hasScramble = scrCells.some(c => !c.done);
+      const settled =
+        !hasScramble &&
+        isSettled(rollWidth, 0.1) &&
+        liveWords.every(w => w.letters.every(l => isSettled(l.s))) &&
+        isSettled(waveFocus) &&
+        waveLetters.every(l => isSettled(l.w, 1)) &&
+        isSettled(followS) &&
+        isSettled(avPop) &&
+        drums.every(d => !d || isSettled(d.s)) &&
+        isSettled(magX, 0.05) &&
+        isSettled(magY, 0.05) &&
+        isSettled(likeS) &&
+        isSettled(fanSpread) &&
+        fanCards.every(c => isSettled(c.lift, 0.05) && isSettled(c.sc)) &&
+        deckCards.every(c => isSettled(c.x, 0.1) && isSettled(c.y, 0.1) && isSettled(c.d));
+
+      if (settled && lastPortfolioIdle) return;
+      lastPortfolioIdle = settled;
+
       rollSlot.style.width = `${Math.max(80, rollWidth.x).toFixed(1)}px`;
       liveWords.forEach(w => {
         w.letters.forEach(l => {
@@ -937,14 +968,13 @@ export function mountPortfolio(container) {
         });
       });
 
-      const nWave = Math.max(1, waveLetters.length - 1);
-      waveLetters.forEach((l, i) => {
-        const c = i / nWave;
-        const d = (c - waveFocus.x) / SPREAD;
-        const g = Math.exp(-d * d);
-        l.w.t = LIGHT_W + (BOLD_W - LIGHT_W) * g;
-        l.el.style.fontWeight = clamp(l.w.x, 100, 900).toFixed(0);
-        l.el.style.opacity = (0.48 + 0.52 * clamp((l.w.x - LIGHT_W) / (BOLD_W - LIGHT_W), 0, 1)).toFixed(3);
+      waveLetters.forEach(l => {
+        const wRound = String(Math.round(clamp(l.w.x, 100, 900) / 10) * 10);
+        if (l.lastW !== wRound) {
+          l.lastW = wRound;
+          l.el.style.fontWeight = wRound;
+          l.el.style.opacity = (0.48 + 0.52 * clamp((l.w.x - LIGHT_W) / (BOLD_W - LIGHT_W), 0, 1)).toFixed(3);
+        }
       });
 
       scrCells.forEach(c => {

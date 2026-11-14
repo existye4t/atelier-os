@@ -128,9 +128,19 @@ function initPullCord() {
     }
   });
 
+  let lastCordSig = '';
   register({
     frame(dt) {
-      const damping = 0.96;
+      if (!dragging) {
+        let energy = 0;
+        for (let i = 1; i < N; i++) {
+          energy += Math.abs(pts[i][0] - pts[i][2]) + Math.abs(pts[i][1] - pts[i][3]);
+        }
+        if (energy < 0.015 && Math.abs(pts[N - 1][0] - ax) < 0.25 && Math.abs(pts[N - 1][1] - (ay + L)) < 0.25) {
+          return;
+        }
+      }
+      const damping = 0.94;
       const g = 1100 * dt * dt;
       for (let i = 1; i < N; i++) {
         const p = pts[i];
@@ -172,13 +182,16 @@ function initPullCord() {
       }
     },
     render() {
+      const end = pts[N - 1];
+      const sig = `${pts[2][0].toFixed(1)},${end[0].toFixed(1)},${end[1].toFixed(1)}`;
+      if (sig === lastCordSig) return;
+      lastCordSig = sig;
       let d = `M${pts[0][0].toFixed(1)},${pts[0][1].toFixed(1)}`;
       for (let i = 1; i < N - 1; i++) {
         const mx = (pts[i][0] + pts[i + 1][0]) / 2;
         const my = (pts[i][1] + pts[i + 1][1]) / 2;
         d += ` Q${pts[i][0].toFixed(1)},${pts[i][1].toFixed(1)} ${mx.toFixed(1)},${my.toFixed(1)}`;
       }
-      const end = pts[N - 1];
       d += ` L${end[0].toFixed(1)},${end[1].toFixed(1)}`;
       path.setAttribute('d', d);
       knob.setAttribute('cx', end[0].toFixed(1));
@@ -316,6 +329,7 @@ function initMorphIsland() {
 
   refreshMetrics();
 
+  let lastIslandSig = '';
   register({
     frame(dt) {
       step(W, dt);
@@ -325,10 +339,16 @@ function initMorphIsland() {
     render() {
       const h = Math.max(H.x, 28);
       const give = clamp(-H.v / 7000, -0.05, 0.05);
-      island.style.width = `${(W.x * (1 + give)).toFixed(1)}px`;
-      island.style.height = `${h.toFixed(1)}px`;
+      const wVal = (W.x * (1 + give)).toFixed(1);
+      const hVal = h.toFixed(1);
+      const scVal = clamp(press.x, 0.9, 1.06).toFixed(4);
+      const sig = `${wVal}|${hVal}|${scVal}`;
+      if (sig === lastIslandSig) return;
+      lastIslandSig = sig;
+      island.style.width = `${wVal}px`;
+      island.style.height = `${hVal}px`;
       island.style.borderRadius = `${Math.min(h / 2, 30).toFixed(1)}px`;
-      island.style.transform = `translateX(-50%) scale(${clamp(press.x, 0.9, 1.06).toFixed(4)})`;
+      island.style.transform = `translateX(-50%) scale(${scVal})`;
     },
   });
 }
@@ -417,12 +437,16 @@ function initRubberDock() {
   window.addEventListener('resize', () => setTarget(activeIdx, true));
   requestAnimationFrame(() => setTarget(activeIdx, true));
 
+  let lastDockSig = '';
   register({
     frame(dt) {
       step(L, dt);
       step(R, dt);
     },
     render() {
+      const sig = `${L.x.toFixed(2)}|${R.x.toFixed(2)}|${tabW}`;
+      if (sig === lastDockSig) return;
+      lastDockSig = sig;
       const TW = track.offsetWidth || tabW * DOCK_TABS.length;
       let l = L.x;
       let r = R.x;
@@ -650,6 +674,7 @@ function initGooMenu() {
     </div>
   `;
 
+  const stageEl = wrap.querySelector('#goo-stage');
   const mainBtn = wrap.querySelector('#goo-main');
   const mainBlob = wrap.querySelector('#goo-blob-main');
   const blobs = [...wrap.querySelectorAll('.goo-blob')];
@@ -660,7 +685,7 @@ function initGooMenu() {
   const BS = 44;
   const R = 98;
   let open = false;
-  let clock = 0;
+  let gooRenderedOnce = false;
 
   const rot = S(0, 320, 20);
   const bubs = actions.map((a, i) => ({
@@ -713,7 +738,6 @@ function initGooMenu() {
 
   register({
     frame(dt) {
-      clock += dt;
       step(rot, dt);
       bubs.forEach(b => {
         step(b.x, dt);
@@ -722,8 +746,17 @@ function initGooMenu() {
       });
     },
     render() {
-      const breathe = !open ? Math.sin(clock * 2.2) * 0.025 : 0;
-      mainBlob.style.transform = `translate(${OX - 26}px, ${OY - 26}px) scale(${(1 + breathe).toFixed(4)})`;
+      const moving =
+        open ||
+        Math.abs(rot.x - rot.t) > 0.05 ||
+        Math.abs(rot.v) > 0.05 ||
+        bubs.some(b => Math.abs(b.x.x) > 0.08 || Math.abs(b.y.x) > 0.08 || Math.abs(b.x.v) > 0.1 || Math.abs(b.y.v) > 0.1);
+
+      if (!moving && gooRenderedOnce) return;
+      gooRenderedOnce = true;
+
+      if (stageEl) stageEl.style.filter = moving ? 'url(#goo)' : 'none';
+      mainBlob.style.transform = `translate(${OX - 26}px, ${OY - 26}px)`;
       mainBtn.style.transform = `translate(${OX - 26}px, ${OY - 26}px) rotate(${rot.x.toFixed(1)}deg)`;
 
       bubs.forEach(b => {

@@ -8,6 +8,7 @@ Stdlib-only Python 3 HTTP server providing:
 - /api/chat: Multi-provider real LLM harness with Reasoning Effort (low/med/high/max), thinking trace extraction, and Atelier OS tools
 - /api/transcribe: Audio dictation transcription fallback (Gemini Multimodal)
 """
+import base64
 import http.server
 import json
 import os
@@ -15,6 +16,7 @@ import re
 import shutil
 import socketserver
 import subprocess
+import tempfile
 import time
 import urllib.error
 import urllib.parse
@@ -24,6 +26,12 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent
 PORT = int(os.environ.get("ATELIER_PORT", "4173"))
 OPENCODE_BIN = shutil.which("opencode") or "/home/exist/.opencode/bin/opencode"
+FFMPEG_BIN = shutil.which("ffmpeg") or "/usr/bin/ffmpeg"
+ASR_ROOT = Path("/home/exist/.cache/atelier-os-asr")
+WHISPER_CLI = ASR_ROOT / "whisper.cpp/build/bin/whisper-cli"
+WHISPER_MODEL_FAST = ASR_ROOT / "models/ggml-tiny-q5_1.bin"
+WHISPER_MODEL_ACC = ASR_ROOT / "models/ggml-base-q5_1.bin"
+WHISPER_MODEL_SMALL = ASR_ROOT / "models/ggml-small-q5_1.bin"
 
 GITHUB_FALLBACK_PROFILE = {
     "login": "existye4t",
@@ -694,6 +702,49 @@ def call_ollama(model, messages, app_state, effort="auto", agent_mode="build"):
     return cleaned, reasoning, tool_calls, None
 
 
+def clean_whisper_text(raw):
+    # Strip bracketed sound tags like [Müzik], (Alkış), [BLANK_AUDIO] and known subtitle hallucinations
+    t = re.sub(r"\[[^\]]{1,40}\]|\([^)]{1,40}\)", " ", raw or "")
+    t = re.sub(r"(?i)\b(altyazı\s*m\.?k\.?|teşekkürler\s+izlediğiniz\s+için)\b\.?", "", t)
+    t = re.sub(r"\s+", " ", t).strip()
+    if t and t[0].islower():
+        t = t[0].upper() + t[1:]
+    return t
+
+
+def transcribe_local_whisper(audio_b64, mime, model_path, fast=False):
+    raw_bytes = base64.b64decode(audio_b64)
+    if len(raw_bytes) < 400:
+        return ""
+    ext = ".ogg" if "ogg" in mime else (".wav" if "wav" in mime else ".webm")
+    with tempfile.TemporaryDirectory(prefix="atelier_asr_") as tmp:
+        src = Path(tmp) / f"in{ext}"
+        wav = Path(tmp) / "out.wav"
+        src.write_bytes(raw_bytes)
+        ff = subprocess.run(
+            [FFMPEG_BIN, "-y", "-i", str(src), "-af", "highpass=f=80,lowpass=f=7600", "-ar", "16000", "-ac", "1", "-f", "wav", str(wav)],
+            capture_output=True,
+            timeout=15,
+        )
+        if ff.returncode != 0 or not wav.exists() or wav.stat().st_size < 1600:
+            return ""
+        cmd = [
+            str(WHISPER_CLI),
+            "-m", str(model_path),
+            "-l", "tr",
+            "-t", "4",
+            "-np",
+            "-nt",
+            "--no-speech-thold", "0.55",
+            "--prompt", "Türkçe konuşma. Atölye OS, GitHub, kodlama ve günlük notlar.",
+            "-f", str(wav),
+        ]
+        if fast:
+            cmd.extend(["-bo", "1", "-bs", "1"])
+        res = subprocess.run(cmd, capture_output=True, text=True, timeout=25)
+        return clean_whisper_text(res.stdout)
+
+
 class AtelierHandler(http.server.SimpleHTTPRequestHandler):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, directory=str(ROOT), **kwargs)
@@ -807,11 +858,27 @@ class AtelierHandler(http.server.SimpleHTTPRequestHandler):
         if parsed.path == "/api/transcribe":
             try:
                 body = self.read_json_body()
-                provider = body.get("provider") or ""
+                provider = body.get("provider") or "whisper"
                 api_key = (body.get("apiKey") or "").strip()
                 audio_b64 = body.get("audio") or ""
                 mime = body.get("mimeType") or "audio/webm"
-                if provider == "gemini" and api_key and audio_b64:
+                partial = bool(body.get("partial", False))
+
+                if not audio_b64:
+                    return self.send_json(200, {"ok": True, "text": "", "engine": "empty"})
+
+                # 1. Free local offline Whisper.cpp (works in Zen Browser & Chromium without any key)
+                model_path = (
+                    WHISPER_MODEL_FAST
+                    if (partial and WHISPER_MODEL_FAST.exists())
+                    else (WHISPER_MODEL_ACC if WHISPER_MODEL_ACC.exists() else WHISPER_MODEL_SMALL)
+                )
+                if WHISPER_CLI.exists() and model_path.exists() and Path(FFMPEG_BIN).exists():
+                    text = transcribe_local_whisper(audio_b64, mime, model_path, fast=partial)
+                    return self.send_json(200, {"ok": True, "text": text, "engine": f"whisper:{model_path.stem}"})
+
+                # 2. Optional Gemini key fallback
+                if provider == "gemini" and api_key:
                     url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={urllib.parse.quote(api_key)}"
                     payload = {
                         "contents": [{
@@ -824,8 +891,9 @@ class AtelierHandler(http.server.SimpleHTTPRequestHandler):
                     _, data = http_json(url, method="POST", body=payload, timeout=45)
                     parts = (((data.get("candidates") or [{}])[0].get("content") or {}).get("parts")) or []
                     text = "".join(p.get("text", "") for p in parts).strip()
-                    return self.send_json(200, {"ok": True, "text": text})
-                return self.send_json(400, {"ok": False, "error": "Ses çözümlemesi için Gemini API anahtarı gereklidir."})
+                    return self.send_json(200, {"ok": True, "text": text, "engine": "gemini"})
+
+                return self.send_json(400, {"ok": False, "error": "Yerel Whisper bulunamadı ve API anahtarı tanımlı değil."})
             except Exception as e:
                 return self.send_json(500, {"ok": False, "error": str(e)})
 

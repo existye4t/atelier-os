@@ -345,6 +345,7 @@ export function mountAI(container) {
   const optAutoSend = container.querySelector('#opt-autosend');
   const optTts = container.querySelector('#opt-tts');
 
+  const orbPanel = container.querySelector('.ai-orb-panel');
   const orbWrap = container.querySelector('#orb-wrap');
   const siriOrb = container.querySelector('#siri-orb');
   const siriGlow = container.querySelector('#siri-glow');
@@ -784,9 +785,31 @@ export function mountAI(container) {
     return safe;
   }
 
+  function renderLiveDictationHtml() {
+    if (!liveDictationState.active) return '';
+    const refining = liveDictationState.phase === 'refining';
+    const badge = refining ? '· Metin netleştiriliyor...' : '· Dinleniyor (saydam canlı taslak)';
+    const text = liveDictationState.text
+      ? formatMessageHtml(liveDictationState.text)
+      : 'Mikrofon dinliyor... konuşmaya başlayabilirsin.';
+    return `
+      <div class="harness-turn turn-user is-dictating ${refining ? 'is-refining' : ''}" id="live-dictation-turn">
+        <div class="turn-gutter"></div>
+        <div class="turn-content">
+          <div class="turn-meta mono">
+            <span class="dict-pulse"></span>
+            <span class="tm-actor">CANLI DİKTE</span>
+            <span>${badge}</span>
+          </div>
+          <div class="turn-text ${liveDictationState.text ? '' : 'dict-draft'}">${text}</div>
+        </div>
+      </div>
+    `;
+  }
+
   function renderChatFeed() {
     const hist = store.state.chatHistory;
-    if (!hist.length) {
+    if (!hist.length && !liveDictationState.active) {
       const c = store.state.aiConfig;
       chatFeed.innerHTML = `
         <div class="harness-empty">
@@ -885,7 +908,7 @@ export function mountAI(container) {
           </div>
         `;
       })
-      .join('');
+      .join('') + renderLiveDictationHtml();
     chatFeed.scrollTop = chatFeed.scrollHeight;
   }
 
@@ -1018,6 +1041,7 @@ export function mountAI(container) {
 
     const c = store.state.aiConfig;
     thinking = true;
+    syncOrbLiveClass();
     gooThinkRow.classList.add('active');
     thinkShimmer.textContent = `${c.model} · Efor: ${getEffortLabel(c.effort)} · Yürütülüyor...`;
     statusNote.textContent = 'Model çalıştırılıyor...';
@@ -1045,6 +1069,7 @@ export function mountAI(container) {
       const data = await res.json();
 
       thinking = false;
+      syncOrbLiveClass();
       gooThinkRow.classList.remove('active');
       store.emit('ai-state', 'idle');
 
@@ -1113,6 +1138,7 @@ export function mountAI(container) {
       }
     } catch {
       thinking = false;
+      syncOrbLiveClass();
       gooThinkRow.classList.remove('active');
       store.emit('ai-state', 'idle');
       store.state.chatHistory.push({
@@ -1126,6 +1152,8 @@ export function mountAI(container) {
       renderChatFeed();
       statusNote.textContent = 'Sunucu bağlantısı kesildi';
     } finally {
+      thinking = false;
+      syncOrbLiveClass();
       busySending = false;
       sendBtn.disabled = false;
     }
@@ -1172,7 +1200,7 @@ export function mountAI(container) {
     });
   });
 
-  // ---- Real Voice Dictation + Microphone Analyser ----
+  // ---- Free Offline Local Whisper + Claude-Style Translucent Streaming Dictation ----
   let micStream = null;
   let micCtx = null;
   let micAnalyser = null;
@@ -1181,10 +1209,67 @@ export function mountAI(container) {
   let mediaRecorder = null;
   let audioChunks = [];
   let capturedTranscript = '';
+  let speechAssistText = '';
+  let chunkInFlight = false;
+  let peakMicSinceChunk = 0;
+  let lastAiRenderSig = '';
+  const liveDictationState = { active: false, phase: 'listening', text: '' };
+
+  function syncOrbLiveClass() {
+    orbPanel?.classList.toggle('is-live', Boolean(voiceListening || thinking));
+  }
+
+  function updateLiveDictationUI(text, phase = 'listening') {
+    liveDictationState.active = true;
+    liveDictationState.phase = phase;
+    liveDictationState.text = text;
+    if (text) {
+      aiInput.value = text;
+      updateGhost();
+    }
+    renderChatFeed();
+  }
+
+  function clearLiveDictationUI() {
+    liveDictationState.active = false;
+    liveDictationState.phase = 'listening';
+    liveDictationState.text = '';
+    renderChatFeed();
+  }
+
+  async function blobToBase64(blob) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result || '').split(',')[1] || '');
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    });
+  }
+
+  async function requestWhisperTranscribe(blob, partial) {
+    const b64 = await blobToBase64(blob);
+    if (!b64) return { ok: false, text: '' };
+    const c = store.state.aiConfig;
+    const res = await fetch('/api/transcribe', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        provider: 'whisper',
+        apiKey: c.apiKeys.gemini || '',
+        audio: b64,
+        mimeType: blob.type || 'audio/webm',
+        partial,
+      }),
+    });
+    if (!res.ok) return { ok: false, status: res.status, text: '' };
+    return await res.json();
+  }
 
   async function startMicMeter() {
     try {
-      micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      micStream = await navigator.mediaDevices.getUserMedia({
+        audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
+      });
       const AC = window.AudioContext || window.webkitAudioContext;
       if (AC) {
         micCtx = new AC();
@@ -1210,53 +1295,101 @@ export function mountAI(container) {
     realMicLevel = 0;
   }
 
-  async function fallbackRecordAndTranscribe() {
-    if (!micStream || typeof MediaRecorder === 'undefined') return;
+  function pickSupportedAudioMime() {
+    const candidates = ['audio/webm;codecs=opus', 'audio/webm', 'audio/ogg;codecs=opus', 'audio/ogg'];
+    for (const m of candidates) {
+      if (typeof MediaRecorder !== 'undefined' && MediaRecorder.isTypeSupported?.(m)) return m;
+    }
+    return '';
+  }
+
+  function startRecorderStream() {
+    if (!micStream || typeof MediaRecorder === 'undefined') return false;
     audioChunks = [];
+    chunkInFlight = false;
+    peakMicSinceChunk = 0;
+
+    const mime = pickSupportedAudioMime();
     try {
-      mediaRecorder = new MediaRecorder(micStream);
-      mediaRecorder.ondataavailable = e => {
-        if (e.data && e.data.size > 0) audioChunks.push(e.data);
-      };
-      mediaRecorder.onstop = async () => {
-        const blob = new Blob(audioChunks, { type: mediaRecorder.mimeType || 'audio/webm' });
-        stopMicMeter();
-        const gemKey = store.state.aiConfig.apiKeys.gemini;
-        if (!gemKey) {
-          statusNote.textContent = 'Web Speech yanıt vermedi · Ayarlardan Gemini anahtarı eklersen ses çözülür';
-          return;
-        }
-        statusNote.textContent = 'Ses Gemini ile metne çevriliyor...';
-        const reader = new FileReader();
-        reader.onload = async () => {
-          const b64 = String(reader.result || '').split(',')[1] || '';
-          const res = await fetch('/api/transcribe', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ provider: 'gemini', apiKey: gemKey, audio: b64, mimeType: blob.type }),
-          });
-          const out = await res.json();
-          if (out?.ok && out.text) {
-            aiInput.value = out.text;
-            updateGhost();
-            if (store.state.aiConfig.autoSendVoice) sendMessage(out.text);
-          } else {
-            statusNote.textContent = out?.error || 'Ses metne dönüştürülemedi';
-          }
-        };
-        reader.readAsDataURL(blob);
-      };
-      mediaRecorder.start();
+      mediaRecorder = mime ? new MediaRecorder(micStream, { mimeType: mime }) : new MediaRecorder(micStream);
     } catch {
+      mediaRecorder = new MediaRecorder(micStream);
+    }
+
+    mediaRecorder.ondataavailable = async e => {
+      if (!e.data || e.data.size === 0) return;
+      audioChunks.push(e.data);
+
+      // Stream live translucent Whisper partial chunks while speaking (Zen + Chromium)
+      if (!voiceListening || chunkInFlight || peakMicSinceChunk < 0.03) return;
+      peakMicSinceChunk = 0;
+      chunkInFlight = true;
+      try {
+        const snapshot = new Blob(audioChunks, { type: mediaRecorder.mimeType || 'audio/webm' });
+        const out = await requestWhisperTranscribe(snapshot, true);
+        if (voiceListening && out?.ok && out.text) {
+          capturedTranscript = out.text;
+          updateLiveDictationUI(out.text, 'listening');
+          statusNote.textContent = 'Canlı dikte akıyor... (bitirmek için tekrar tıkla)';
+        }
+      } catch {
+        /* ignore transient partial error */
+      } finally {
+        chunkInFlight = false;
+      }
+    };
+
+    mediaRecorder.onstop = async () => {
+      const fullBlob = new Blob(audioChunks, { type: mediaRecorder.mimeType || 'audio/webm' });
       stopMicMeter();
+
+      let finalText = (capturedTranscript || speechAssistText || '').trim();
+      updateLiveDictationUI(finalText || 'Ses çözümleniyor...', 'refining');
+      statusNote.textContent = 'Ses netleştiriliyor (Whisper)...';
+
+      try {
+        const out = await requestWhisperTranscribe(fullBlob, false);
+        if (out?.ok && out.text && out.text.trim()) {
+          finalText = out.text.trim();
+        }
+      } catch {
+        /* keep best partial or browser assist text */
+      }
+
+      clearLiveDictationUI();
+      capturedTranscript = '';
+      speechAssistText = '';
+
+      if (!finalText) {
+        statusNote.textContent = 'Konuşma algılanamadı — tekrar deneyebilirsin';
+        return;
+      }
+
+      if (store.state.aiConfig.autoSendVoice) {
+        await sendMessage(finalText);
+      } else {
+        aiInput.value = finalText;
+        updateGhost();
+        aiInput.focus();
+        statusNote.textContent = 'Dikte tamamlandı ✓ (düzenleyip gönderebilirsin)';
+      }
+    };
+
+    try {
+      mediaRecorder.start(1800);
+      return true;
+    } catch {
+      return false;
     }
   }
 
-  function stopVoiceSession(sendCaptured = false) {
+  function stopVoiceSession() {
     voiceListening = false;
+    syncOrbLiveClass();
     voiceBtn.classList.remove('active');
     voiceLabel.textContent = 'Sesli Dikteyi Başlat';
     voiceGainS.t = 0;
+
     if (recognition) {
       try { recognition.stop(); } catch {}
       recognition = null;
@@ -1265,23 +1398,16 @@ export function mountAI(container) {
       mediaRecorder.stop();
     } else {
       stopMicMeter();
-    }
-    if (sendCaptured && capturedTranscript.trim()) {
-      const finalMsg = capturedTranscript.trim();
-      capturedTranscript = '';
-      aiInput.value = finalMsg;
-      updateGhost();
-      if (store.state.aiConfig.autoSendVoice) sendMessage(finalMsg);
+      clearLiveDictationUI();
     }
   }
 
   async function toggleVoice() {
     if (voiceListening) {
-      stopVoiceSession(true);
+      stopVoiceSession();
       return;
     }
 
-    const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
     const hasMic = await startMicMeter();
     if (!hasMic) {
       statusNote.textContent = 'Mikrofon izni verilmedi veya cihaz bulunamadı.';
@@ -1290,54 +1416,50 @@ export function mountAI(container) {
 
     voiceListening = true;
     capturedTranscript = '';
+    speechAssistText = '';
+    syncOrbLiveClass();
     voiceBtn.classList.add('active');
     voiceLabel.textContent = 'Dinleniyor... (Bitir)';
     voiceGainS.t = 1;
-    statusNote.textContent = 'Konuşabilirsin — metin canlı yazılıyor...';
+    updateLiveDictationUI('', 'listening');
+    statusNote.textContent = 'Mikrofon açık — konuşabilirsin...';
     sound.tickSound(0.8);
 
+    const recorderStarted = startRecorderStream();
+
+    // Optional instant Web Speech assist (fails silently in Zen/offline while Whisper handles everything)
+    const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (SpeechRec) {
-      recognition = new SpeechRec();
-      recognition.lang = 'tr-TR';
-      recognition.interimResults = true;
-      recognition.continuous = true;
-
-      recognition.onresult = event => {
-        let finalStr = '';
-        let interimStr = '';
-        for (let i = 0; i < event.results.length; i++) {
-          const piece = event.results[i][0].transcript;
-          if (event.results[i].isFinal) finalStr += piece + ' ';
-          else interimStr += piece;
-        }
-        capturedTranscript = (finalStr + interimStr).trim();
-        aiInput.value = capturedTranscript;
-        updateGhost();
-      };
-
-      recognition.onerror = async ev => {
-        if (ev.error === 'network' || ev.error === 'service-not-allowed') {
-          statusNote.textContent = 'Tarayıcı diktesi yerine ses kaydediliyor...';
-          recognition = null;
-          await fallbackRecordAndTranscribe();
-        } else if (ev.error !== 'aborted') {
-          statusNote.textContent = `Dikte hatası: ${ev.error}`;
-        }
-      };
-
-      recognition.onend = () => {
-        if (voiceListening && capturedTranscript.trim()) {
-          stopVoiceSession(true);
-        }
-      };
-
       try {
+        recognition = new SpeechRec();
+        recognition.lang = 'tr-TR';
+        recognition.interimResults = true;
+        recognition.continuous = true;
+        recognition.onresult = event => {
+          if (!voiceListening) return;
+          let txt = '';
+          for (let i = 0; i < event.results.length; i++) {
+            txt += event.results[i][0].transcript + ' ';
+          }
+          const clean = txt.trim();
+          if (clean) {
+            speechAssistText = clean;
+            if (!capturedTranscript || clean.length >= capturedTranscript.length) {
+              updateLiveDictationUI(clean, 'listening');
+            }
+          }
+        };
+        recognition.onerror = () => {
+          try { recognition?.stop(); } catch {}
+          recognition = null;
+        };
         recognition.start();
       } catch {
-        await fallbackRecordAndTranscribe();
+        recognition = null;
       }
-    } else {
-      await fallbackRecordAndTranscribe();
+    } else if (!recorderStarted) {
+      stopVoiceSession();
+      statusNote.textContent = 'Tarayıcı ses kaydını başlatamadı.';
     }
   }
 
@@ -1356,11 +1478,11 @@ export function mountAI(container) {
   updateGhost();
   loadModels();
 
-  // ---- Active-only rAF loop ----
+  // ---- Active-only rAF loop (zero DOM updates when idle) ----
   register({
     active: () => store.state.activeView === 'ai',
     frame(dt) {
-      orbClock += dt;
+      if (voiceListening || thinking) orbClock += dt;
       if (voiceListening && micAnalyser && micData) {
         micAnalyser.getByteTimeDomainData(micData);
         let sum = 0;
@@ -1369,6 +1491,7 @@ export function mountAI(container) {
           sum += d * d;
         }
         const rms = Math.sqrt(sum / micData.length);
+        if (rms > peakMicSinceChunk) peakMicSinceChunk = rms;
         realMicLevel = clamp(rms * 3.8, 0.08, 1);
         voiceGainS.t = realMicLevel;
       }
@@ -1377,6 +1500,18 @@ export function mountAI(container) {
     },
     render() {
       const g = clamp(voiceGainS.x, 0, 1);
+      const moving =
+        voiceListening ||
+        thinking ||
+        g > 0.01 ||
+        Math.abs(orbPressS.x - 1) > 0.002 ||
+        Math.abs(orbPressS.v) > 0.01;
+      const sig = moving
+        ? `${voiceListening}|${thinking}|${g.toFixed(3)}|${orbPressS.x.toFixed(3)}|${orbClock.toFixed(2)}`
+        : 'idle';
+      if (sig === lastAiRenderSig) return;
+      lastAiRenderSig = sig;
+
       const thinkBoost = thinking ? 0.07 * Math.sin(orbClock * 5) : 0;
       const orbScale = clamp(orbPressS.x + g * 0.14 + thinkBoost, 0.86, 1.24);
       siriOrb.style.transform = `scale(${orbScale.toFixed(4)})`;
@@ -1388,7 +1523,7 @@ export function mountAI(container) {
           const v = 0.2 + g * (0.45 + 0.55 * Math.abs(Math.sin(orbClock * 7 + i * 0.7)));
           b.style.transform = `scaleY(${clamp(v, 0.16, 1).toFixed(3)})`;
         });
-      } else if (Math.abs(g) < 0.02) {
+      } else {
         waveBars.forEach(b => { b.style.transform = 'scaleY(0.18)'; });
       }
 

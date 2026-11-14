@@ -518,11 +518,14 @@ export function mountVault(container) {
   renderTags();
   renderVaultCards();
 
-  // ---- Active-only rAF physics for Stat Card & Glass Lens (cached dimensions, zero layout thrash) ----
+  // ---- Active-only rAF physics for Stat Card & Glass Lens (sleeps cleanly when settled) ----
+  const isSettled = (s, eps = 0.002) => Math.abs(s.x - s.t) < eps && Math.abs(s.v) < eps;
+  let lastStatSig = '';
+  let lastLensSig = '';
+
   register({
     active: () => store.state.activeView === 'vault',
     frame(dt) {
-      lensClock += dt;
       ptSprings.forEach(p => step(p, dt));
       step(pillX, dt);
       step(pillW, dt);
@@ -530,59 +533,68 @@ export function mountVault(container) {
       if (!lensHover) {
         const W = cachedPosterW || 320;
         const H = cachedPosterH || 240;
-        lensX.t = W / 2 + Math.cos(lensClock * 0.42) * W * 0.26;
-        lensY.t = H / 2 + Math.sin(lensClock * 0.84) * H * 0.16;
+        lensX.t = W * 0.5;
+        lensY.t = H * 0.48;
       }
       step(lensX, dt);
       step(lensY, dt);
       step(lensZ, dt);
     },
     render() {
-      const W = cachedChartW || 280;
-      const H = 96;
-      const n = ptSprings.length;
-      statChart.setAttribute('viewBox', `0 0 ${W} ${H}`);
-      const xy = ptSprings.map((p, i) => [
-        4 + (i / (n - 1)) * (W - 8),
-        10 + (1 - clamp(p.x, -0.05, 1.05)) * (H - 20),
-      ]);
-      let d = `M${xy[0][0].toFixed(2)} ${xy[0][1].toFixed(2)}`;
-      for (let i = 0; i < n - 1; i++) {
-        const p0 = xy[i - 1] || xy[i];
-        const p1 = xy[i];
-        const p2 = xy[i + 1];
-        const p3 = xy[i + 2] || p2;
-        const c1x = p1[0] + (p2[0] - p0[0]) / 6;
-        const c1y = p1[1] + (p2[1] - p0[1]) / 6;
-        const c2x = p2[0] - (p3[0] - p1[0]) / 6;
-        const c2y = p2[1] - (p3[1] - p1[1]) / 6;
-        d += ` C${c1x.toFixed(2)} ${c1y.toFixed(2)} ${c2x.toFixed(2)} ${c2y.toFixed(2)} ${p2[0].toFixed(2)} ${p2[1].toFixed(2)}`;
+      const statSettled = ptSprings.every(p => isSettled(p)) && isSettled(pillX, 0.05) && isSettled(pillW, 0.05);
+      const statSig = `${cachedChartW}|${pillX.x.toFixed(1)}|${pillW.x.toFixed(1)}|${ptSprings.map(p => p.x.toFixed(3)).join(',')}`;
+      if (!statSettled || statSig !== lastStatSig) {
+        lastStatSig = statSig;
+        const W = cachedChartW || 280;
+        const H = 96;
+        const n = ptSprings.length;
+        statChart.setAttribute('viewBox', `0 0 ${W} ${H}`);
+        const xy = ptSprings.map((p, i) => [
+          4 + (i / (n - 1)) * (W - 8),
+          10 + (1 - clamp(p.x, -0.05, 1.05)) * (H - 20),
+        ]);
+        let d = `M${xy[0][0].toFixed(2)} ${xy[0][1].toFixed(2)}`;
+        for (let i = 0; i < n - 1; i++) {
+          const p0 = xy[i - 1] || xy[i];
+          const p1 = xy[i];
+          const p2 = xy[i + 1];
+          const p3 = xy[i + 2] || p2;
+          const c1x = p1[0] + (p2[0] - p0[0]) / 6;
+          const c1y = p1[1] + (p2[1] - p0[1]) / 6;
+          const c2x = p2[0] - (p3[0] - p1[0]) / 6;
+          const c2y = p2[1] - (p3[1] - p1[1]) / 6;
+          d += ` C${c1x.toFixed(2)} ${c1y.toFixed(2)} ${c2x.toFixed(2)} ${c2y.toFixed(2)} ${p2[0].toFixed(2)} ${p2[1].toFixed(2)}`;
+        }
+        statLine.setAttribute('d', d);
+        statFill.setAttribute('d', `${d} L${xy[n - 1][0].toFixed(2)} ${H} L${xy[0][0].toFixed(2)} ${H} Z`);
+        statDot.style.transform = `translate(${(xy[n - 1][0] - 4.5).toFixed(2)}px, ${(xy[n - 1][1] - 4.5).toFixed(2)}px)`;
+
+        statPill.style.transform = `translateX(${pillX.x.toFixed(2)}px)`;
+        statPill.style.width = `${Math.max(40, pillW.x).toFixed(2)}px`;
       }
-      statLine.setAttribute('d', d);
-      statFill.setAttribute('d', `${d} L${xy[n - 1][0].toFixed(2)} ${H} L${xy[0][0].toFixed(2)} ${H} Z`);
-      statDot.style.transform = `translate(${(xy[n - 1][0] - 4.5).toFixed(2)}px, ${(xy[n - 1][1] - 4.5).toFixed(2)}px)`;
 
-      statPill.style.transform = `translateX(${pillX.x.toFixed(2)}px)`;
-      statPill.style.width = `${Math.max(40, pillW.x).toFixed(2)}px`;
+      const lensSig = `${cachedPosterW}|${cachedPosterH}|${lensX.x.toFixed(1)}|${lensY.x.toFixed(1)}|${lensZ.x.toFixed(3)}|${lensX.v.toFixed(1)}`;
+      if (lensSig !== lastLensSig) {
+        lastLensSig = lensSig;
+        const L = 164;
+        const x = lensX.x;
+        const y = lensY.x;
+        const tilt = clamp(lensX.v / 220, -6, 6);
+        lensEl.style.transform = `translate(${(x - L / 2).toFixed(2)}px, ${(y - L / 2).toFixed(2)}px) rotate(${tilt.toFixed(2)}deg)`;
+        lensView.style.transform = `rotate(${(-tilt).toFixed(2)}deg)`;
 
-      const L = 164;
-      const x = lensX.x;
-      const y = lensY.x;
-      const tilt = clamp(lensX.v / 220, -6, 6);
-      lensEl.style.transform = `translate(${(x - L / 2).toFixed(2)}px, ${(y - L / 2).toFixed(2)}px) rotate(${tilt.toFixed(2)}deg)`;
-      lensView.style.transform = `rotate(${(-tilt).toFixed(2)}deg)`;
-
-      const pw = cachedPosterW || 320;
-      const ph = cachedPosterH || 240;
-      const ox = -(x - L / 2);
-      const oy = -(y - L / 2);
-      const origin = `${x.toFixed(1)}px ${y.toFixed(1)}px`;
-      lensCopies.forEach(({ c, b }) => {
-        c.style.width = `${pw}px`;
-        c.style.height = `${ph}px`;
-        c.style.transformOrigin = origin;
-        c.style.transform = `translate(${ox.toFixed(2)}px, ${oy.toFixed(2)}px) scale(${(lensZ.x * b).toFixed(4)})`;
-      });
+        const pw = cachedPosterW || 320;
+        const ph = cachedPosterH || 240;
+        const ox = -(x - L / 2);
+        const oy = -(y - L / 2);
+        const origin = `${x.toFixed(1)}px ${y.toFixed(1)}px`;
+        lensCopies.forEach(({ c, b }) => {
+          c.style.width = `${pw}px`;
+          c.style.height = `${ph}px`;
+          c.style.transformOrigin = origin;
+          c.style.transform = `translate(${ox.toFixed(2)}px, ${oy.toFixed(2)}px) scale(${(lensZ.x * b).toFixed(4)})`;
+        });
+      }
     },
   });
 }
