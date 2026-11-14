@@ -4,6 +4,8 @@
 
 > Live Demo (GitHub Pages): **[existye4t.github.io/atelier-os](https://existye4t.github.io/atelier-os/)**
 
+![Atelier OS — Yerel Yaratıcı Çalışma Alanı](./assets/og-card.png)
+
 ---
 
 ## Özellikler & 4 Dünya Mimarisi
