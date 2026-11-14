@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="tr" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Atelier OS · Birleşik Yaratıcı Stüdyo</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@100..900&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="./styles/tokens.css" />
+  <link rel="stylesheet" href="./styles/app.css" />
+</head>
+<body>
+  <!-- Global SVG Filters (DesignBookmark Motion Studies) -->
+  <svg width="0" height="0" style="position:absolute;pointer-events:none;" aria-hidden="true">
+    <defs>
+      <filter id="goo" x="-50%" y="-50%" width="200%" height="200%">
+        <feGaussianBlur in="SourceGraphic" stdDeviation="10" result="blur" />
+        <feColorMatrix in="blur" mode="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 22 -10" result="goo" />
+        <feComposite in="SourceGraphic" in2="goo" operator="atop" />
+      </filter>
+      <filter id="dotgoo" x="-50%" y="-50%" width="200%" height="200%">
+        <feGaussianBlur in="SourceGraphic" stdDeviation="3.2" result="blur" />
+        <feColorMatrix in="blur" mode="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 20 -8" />
+      </filter>
+      <filter id="glass" x="-20%" y="-20%" width="140%" height="140%">
+        <feTurbulence type="fractalNoise" baseFrequency="0.012" numOctaves="2" seed="7" result="noise" />
+        <feGaussianBlur in="noise" stdDeviation="3" result="soft" />
+        <feDisplacementMap in="SourceGraphic" in2="soft" scale="28" xChannelSelector="R" yChannelSelector="G" result="disp" />
+        <feGaussianBlur in="disp" stdDeviation="0.4" />
+      </filter>
+    </defs>
+  </svg>
+
+  <!-- Architectural Backdrop & Ambient Studio Lamp Exposure -->
+  <div class="atelier-backdrop" aria-hidden="true">
+    <div class="bg-grid"></div>
+    <div class="bg-horizon"></div>
+  </div>
+  <div class="theme-flood" id="theme-flood" aria-hidden="true"></div>
+  <div class="ambient-glow" aria-hidden="true"></div>
+
+  <!-- Top Global Shell -->
+  <header class="topbar">
+    <div class="brand-lockup">
+      <span class="brand-dot" data-av="6" aria-hidden="true"></span>
+      <div>
+        <strong class="brand-name">Atelier OS</strong>
+        <span class="brand-sub">DesignBookmark · 4 Dünya</span>
+      </div>
+    </div>
+
+    <div class="morph-island" id="morph-island" role="status" aria-live="polite"></div>
+
+    <div class="pull-cord-wrap" id="pull-cord-wrap"></div>
+  </header>
+
+  <!-- Four Mounted Creative Worlds -->
+  <main class="stage-main">
+    <section class="view-pane active" id="view-studio" aria-label="Odak & Ses Stüdyosu"></section>
+    <section class="view-pane" id="view-ai" aria-label="AI Ajan Kokpiti"></section>
+    <section class="view-pane" id="view-portfolio" aria-label="Portfolyo & Dergi"></section>
+    <section class="view-pane" id="view-vault" aria-label="Fikir Kasası"></section>
+  </main>
+
+  <!-- Bottom Floating Rubber Dock -->
+  <nav class="rubber-dock" id="rubber-dock" aria-label="Çalışma Alanları"></nav>
+
+  <!-- Floating Liquid Goo Action Menu -->
+  <div class="goo-menu" id="goo-menu"></div>
+
+  <!-- Timed Undo Toast -->
+  <div class="undo-toast" id="undo-toast" role="status" aria-live="polite"></div>
+
+  <!-- Global Command Palette (Ctrl/Cmd + K) -->
+  <div class="cmd-backdrop" id="cmd-backdrop" aria-hidden="true">
+    <div class="cmd-palette" id="cmd-palette" role="dialog" aria-modal="true" aria-label="Komut Paleti"></div>
+  </div>
+
+  <script src="./js/motion.js"></script>
+  <script type="module" src="./js/main.js"></script>
+</body>
+</html>
