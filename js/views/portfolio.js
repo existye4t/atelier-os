@@ -390,7 +390,7 @@ export function mountPortfolio(container) {
     sound.tickSound(0.6);
   });
   let rollTimer = setInterval(() => {
-    if (store.state.activeView === 'portfolio') cycleRoll();
+    if (!document.hidden && store.state.activeView === 'portfolio') cycleRoll();
   }, 4200);
 
   // ---- 2. Weight Wave (Gaussian bell across cursor with preserved whitespace) ----
@@ -449,6 +449,7 @@ export function mountPortfolio(container) {
       };
     });
     scrClock = 0;
+    window.Motion?.wake?.();
   }
   runScramble(SCRAMBLES[0]);
   scrambleEl.addEventListener('click', () => {
@@ -913,6 +914,7 @@ export function mountPortfolio(container) {
 
   register({
     active: () => store.state.activeView === 'portfolio',
+    running: () => scrCells.some(c => !c.done),
     frame(dt) {
       scrClock += dt;
       step(rollWidth, dt);

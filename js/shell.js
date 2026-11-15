@@ -64,6 +64,7 @@ function initPullCord() {
   const pts = Array.from({ length: N }, (_, i) => [ax, ay + (i / (N - 1)) * L, ax, ay + (i / (N - 1)) * L]);
   let dragging = false;
   let armed = false;
+  let cordActive = false;
   let targetX = ax;
   let targetY = ay + L;
   let floodTimer = null;
@@ -87,6 +88,8 @@ function initPullCord() {
   grab.addEventListener('pointerdown', e => {
     dragging = true;
     armed = true;
+    cordActive = true;
+    window.Motion?.wake?.();
     grab.setPointerCapture(e.pointerId);
     const rect = host.getBoundingClientRect();
     targetX = clamp(e.clientX - rect.left, 8, 80);
@@ -124,12 +127,15 @@ function initPullCord() {
     if (e.key === 'Enter' || e.key === ' ') {
       e.preventDefault();
       pts[N - 1][1] += 28;
+      cordActive = true;
+      window.Motion?.wake?.();
       triggerThemeFlip();
     }
   });
 
   let lastCordSig = '';
   register({
+    running: () => dragging || cordActive,
     frame(dt) {
       if (!dragging) {
         let energy = 0;
@@ -137,6 +143,14 @@ function initPullCord() {
           energy += Math.abs(pts[i][0] - pts[i][2]) + Math.abs(pts[i][1] - pts[i][3]);
         }
         if (energy < 0.015 && Math.abs(pts[N - 1][0] - ax) < 0.25 && Math.abs(pts[N - 1][1] - (ay + L)) < 0.25) {
+          for (let i = 0; i < N; i++) {
+            const ry = ay + (i / (N - 1)) * L;
+            pts[i][0] = ax;
+            pts[i][1] = ry;
+            pts[i][2] = ax;
+            pts[i][3] = ry;
+          }
+          cordActive = false;
           return;
         }
       }

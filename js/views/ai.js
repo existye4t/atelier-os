@@ -1091,6 +1091,7 @@ export function mountAI(container) {
     const c = store.state.aiConfig;
     thinking = true;
     syncOrbLiveClass();
+    window.Motion?.wake?.();
     gooThinkRow.classList.add('active');
     thinkShimmer.textContent = `${c.model} · Efor: ${getEffortLabel(c.effort)} · Yürütülüyor...`;
     statusNote.textContent = 'Model çalıştırılıyor...';
@@ -1504,6 +1505,7 @@ export function mountAI(container) {
     capturedTranscript = '';
     speechAssistText = '';
     syncOrbLiveClass();
+    window.Motion?.wake?.();
     voiceBtn.classList.add('active');
     voiceLabel.textContent = 'Dinleniyor... (Bitir)';
     voiceGainS.t = 1;
@@ -1567,6 +1569,7 @@ export function mountAI(container) {
   // ---- Active-only rAF loop (zero DOM updates when idle) ----
   register({
     active: () => store.state.activeView === 'ai',
+    running: () => voiceListening || thinking,
     frame(dt) {
       if (voiceListening || thinking) orbClock += dt;
       if (voiceListening && micAnalyser && micData) {

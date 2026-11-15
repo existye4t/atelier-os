@@ -1,25 +1,87 @@
 /**
- * Shared spring physics engine adapted from DesignBookmark Motion Studies.
- * Upgraded for zero-lag performance: components may declare an active() predicate
- * so hidden views skip physics substeps and DOM mutations completely.
+ * Demand-driven shared spring physics engine for Atelier OS.
+ * Runs at display refresh rate while any spring, timer, or active animation is running,
+ * and sleeps completely (0 requestAnimationFrame callbacks, ~0% CPU) once settled.
  */
 window.Motion = (() => {
   const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
-  const S = (x, k = 400, c = 30) => ({ x, v: 0, t: x, k, c: reduce ? 2 * Math.sqrt(k) : c });
+  const activeSprings = new Set();
+  const comps = [];
+  const timers = [];
+  let timeScale = 1;
+  let last = performance.now();
+  let rafId = 0;
+  let inLoop = false;
+
+  function wake() {
+    if (rafId || inLoop || document.hidden) return;
+    last = performance.now();
+    rafId = requestAnimationFrame(loop);
+  }
+
+  const S = (x, k = 400, c = 30) => {
+    let _x = x;
+    let _v = 0;
+    let _t = x;
+    const damp = reduce ? 2 * Math.sqrt(k) : c;
+    const spring = { k, c: damp };
+
+    Object.defineProperties(spring, {
+      x: {
+        enumerable: true,
+        get() { return _x; },
+        set(val) {
+          _x = val;
+          if (Math.abs(_x - _t) > 1e-4 || Math.abs(_v) > 1e-3) {
+            activeSprings.add(spring);
+            wake();
+          }
+        },
+      },
+      v: {
+        enumerable: true,
+        get() { return _v; },
+        set(val) {
+          _v = val;
+          if (Math.abs(_v) > 1e-3) {
+            activeSprings.add(spring);
+            wake();
+          }
+        },
+      },
+      t: {
+        enumerable: true,
+        get() { return _t; },
+        set(val) {
+          if (val === _t) return;
+          _t = val;
+          if (Math.abs(_x - _t) > 1e-4 || Math.abs(_v) > 1e-3) {
+            activeSprings.add(spring);
+            wake();
+          }
+        },
+      },
+    });
+    return spring;
+  };
+
   const tune = (s, k, c) => {
     s.k = k;
     s.c = reduce ? 2 * Math.sqrt(k) : c;
   };
+
   const step = (s, dt) => {
     if (Math.abs(s.x - s.t) < 1e-4 && Math.abs(s.v) < 1e-3) {
-      s.x = s.t;
-      s.v = 0;
+      if (s.x !== s.t) s.x = s.t;
+      if (s.v !== 0) s.v = 0;
+      activeSprings.delete(s);
       return;
     }
     const a = -s.k * (s.x - s.t) - s.c * s.v;
-    s.v += a * dt;
-    s.x += s.v * dt;
+    s.v = s.v + a * dt;
+    s.x = s.x + s.v * dt;
   };
+
   const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 
   const token = (name, fallback = '') =>
@@ -30,11 +92,10 @@ window.Motion = (() => {
       .split(/\s+/)
       .map(Number);
 
-  let timeScale = 1;
-  const timers = [];
   const after = (sec, fn) => {
     const t = { t: sec, fn };
     timers.push(t);
+    wake();
     return t;
   };
   const cancel = t => {
@@ -42,15 +103,13 @@ window.Motion = (() => {
     if (i > -1) timers.splice(i, 1);
   };
 
-  const comps = [];
-  let last = performance.now();
-  let rafId = 0;
-
   function loop(now) {
     rafId = 0;
     if (document.hidden) return;
+    inLoop = true;
     const dt = Math.min((now - last) / 1000, 1 / 30) * timeScale;
     last = now;
+
     for (let i = timers.length - 1; i >= 0; i--) {
       if ((timers[i].t -= dt) <= 0) {
         const cb = timers.splice(i, 1)[0].fn;
@@ -70,17 +129,21 @@ window.Motion = (() => {
       for (let i = 0; i < live.length; i++) live[i].frame(subDt);
     }
     for (let i = 0; i < live.length; i++) live[i].render();
-    rafId = requestAnimationFrame(loop);
+
+    const anyRunning = live.some(c => c.running && c.running());
+    inLoop = false;
+    if (timers.length > 0 || activeSprings.size > 0 || anyRunning) {
+      rafId = requestAnimationFrame(loop);
+    }
   }
 
   document.addEventListener('visibilitychange', () => {
-    if (!document.hidden && !rafId) {
-      last = performance.now();
-      rafId = requestAnimationFrame(loop);
+    if (!document.hidden && (timers.length > 0 || activeSprings.size > 0 || comps.some(c => (!c.active || c.active()) && c.running && c.running()))) {
+      wake();
     }
   });
 
-  rafId = requestAnimationFrame(loop);
+  wake();
 
   return {
     S,
@@ -92,12 +155,20 @@ window.Motion = (() => {
     spring,
     after,
     cancel,
-    register: c => comps.push(c),
+    wake,
+    register: c => {
+      comps.push(c);
+      wake();
+    },
     get timeScale() {
       return timeScale;
     },
     setSlow(on) {
       timeScale = on ? 0.25 : 1;
+      wake();
+    },
+    get stats() {
+      return { running: Boolean(rafId), springs: activeSprings.size, timers: timers.length };
     },
     svg: (p, sw = 1.8) =>
       `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${sw}" stroke-linecap="round" stroke-linejoin="round">${p}</svg>`,

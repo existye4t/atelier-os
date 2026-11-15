@@ -533,8 +533,8 @@ export function mountVault(container) {
       if (!lensHover) {
         const W = cachedPosterW || 320;
         const H = cachedPosterH || 240;
-        lensX.t = W * 0.5;
-        lensY.t = H * 0.48;
+        if (Math.abs(lensX.t - W * 0.5) > 0.05) lensX.t = W * 0.5;
+        if (Math.abs(lensY.t - H * 0.48) > 0.05) lensY.t = H * 0.48;
       }
       step(lensX, dt);
       step(lensY, dt);

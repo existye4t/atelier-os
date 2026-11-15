@@ -170,6 +170,7 @@ export function mountStudio(container) {
     trackChips.forEach((c, i) => c.classList.toggle('active', i === sound.trackIdx));
     store.state.soundTrack = sound.trackIdx;
     store.state.playing = sound.playing;
+    if (sound.playing) window.Motion?.wake?.();
     store.emit('audio');
   }
 
@@ -535,6 +536,7 @@ export function mountStudio(container) {
 
   register({
     active: () => store.state.activeView === 'studio',
+    running: () => sound.playing,
     frame(dt) {
       step(dialS, dt);
       step(expS, dt);
