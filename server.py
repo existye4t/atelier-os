@@ -284,8 +284,8 @@ def list_all_models(api_key="", provider="opencode"):
     opencode_pro = [m for m in zen_models if not m["free"]]
 
     browser_free = [
-        {"id": "onnx-community/Qwen2.5-0.5B-Instruct", "name": "Qwen 2.5 0.5B (Tarayıcı İçi Yerel AI)", "provider": "browser", "free": True, "reasoning": False, "tools": False, "supportsVariant": False, "multimodal": False, "context": 32768, "description": "%100 tarayıcında çalışır · Ortak limit YOK, tamamen kişiye özel (WebGPU/WASM)"},
-        {"id": "onnx-community/SmolLM2-360M-Instruct", "name": "SmolLM2 360M (Hafif Tarayıcı İçi AI)", "provider": "browser", "free": True, "reasoning": False, "tools": False, "supportsVariant": False, "multimodal": False, "context": 8192, "description": "Ultra hafif · Yalnızca kendi tarayıcında çalışır, başkasıyla limit paylaşmaz"},
+        {"id": "onnx-community/Qwen2.5-0.5B-Instruct", "name": "Qwen 2.5 0.5B (Tarayıcı İçi Yerel AI)", "provider": "browser", "free": True, "reasoning": False, "tools": False, "supportsVariant": False, "multimodal": False, "context": 32768, "description": "%100 tarayıcında çalışır · Ortak limit YOK (~467 MB WebGPU / ~756 MB WASM)"},
+        {"id": "HuggingFaceTB/SmolLM2-360M-Instruct", "name": "SmolLM2 360M (Hafif Tarayıcı İçi AI)", "provider": "browser", "free": True, "reasoning": False, "tools": False, "supportsVariant": False, "multimodal": False, "context": 8192, "description": "Ultra hafif · Başkasıyla limit paylaşmaz (~262 MB WebGPU / ~372 MB WASM)"},
     ]
 
     web_free = [

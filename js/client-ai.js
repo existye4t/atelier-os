@@ -75,8 +75,8 @@ const ATELIER_TOOLS = [
 ];
 
 export const BROWSER_LOCAL_MODELS = [
-  { id: 'onnx-community/Qwen2.5-0.5B-Instruct', name: 'Qwen 2.5 0.5B (Tarayıcı İçi Yerel AI)', provider: 'browser', free: true, reasoning: false, tools: false, supportsVariant: false, multimodal: false, context: 32768, description: '%100 tarayıcında çalışır · Ortak limit YOK, tamamen kişiye özel (WebGPU/WASM)' },
-  { id: 'onnx-community/SmolLM2-360M-Instruct', name: 'SmolLM2 360M (Hafif Tarayıcı İçi AI)', provider: 'browser', free: true, reasoning: false, tools: false, supportsVariant: false, multimodal: false, context: 8192, description: 'Ultra hafif · Yalnızca kendi tarayıcında çalışır, başkasıyla limit paylaşmaz' },
+  { id: 'onnx-community/Qwen2.5-0.5B-Instruct', name: 'Qwen 2.5 0.5B (Tarayıcı İçi Yerel AI)', provider: 'browser', free: true, reasoning: false, tools: false, supportsVariant: false, multimodal: false, context: 32768, description: '%100 tarayıcında çalışır · Ortak limit YOK (~467 MB WebGPU / ~756 MB WASM)' },
+  { id: 'HuggingFaceTB/SmolLM2-360M-Instruct', name: 'SmolLM2 360M (Hafif Tarayıcı İçi AI)', provider: 'browser', free: true, reasoning: false, tools: false, supportsVariant: false, multimodal: false, context: 8192, description: 'Ultra hafif · Başkasıyla limit paylaşmaz (~262 MB WebGPU / ~372 MB WASM)' },
 ];
 
 export const GROQ_MODELS = [
@@ -858,4 +858,38 @@ export async function transcribeBrowserGemini({ apiKey, base64Audio, mimeType })
   const parts = data?.candidates?.[0]?.content?.parts || [];
   const text = parts.map(p => p.text || '').join('').trim();
   return { ok: Boolean(text), text, engine: 'gemini-direct' };
+}
+
+export async function getBrowserModelCacheInfo() {
+  if (typeof caches === 'undefined') return { supported: false, entries: 0, bytes: 0 };
+  try {
+    const has = await caches.has('transformers-cache');
+    if (!has) return { supported: true, entries: 0, bytes: 0 };
+    const cache = await caches.open('transformers-cache');
+    const keys = await cache.keys();
+    let bytes = 0;
+    for (const req of keys) {
+      const res = await cache.match(req);
+      const cl = Number(res?.headers?.get('content-length') || 0);
+      if (cl > 0) {
+        bytes += cl;
+      } else if (res) {
+        try { bytes += (await res.clone().arrayBuffer()).byteLength; } catch { /* ignore */ }
+      }
+    }
+    return { supported: true, entries: keys.length, bytes };
+  } catch {
+    return { supported: false, entries: 0, bytes: 0 };
+  }
+}
+
+export async function clearBrowserModelCache() {
+  localBrowserPipelines.clear();
+  if (typeof caches === 'undefined') return { ok: false, deleted: false };
+  try {
+    const deleted = await caches.delete('transformers-cache');
+    return { ok: true, deleted };
+  } catch {
+    return { ok: false, deleted: false };
+  }
 }

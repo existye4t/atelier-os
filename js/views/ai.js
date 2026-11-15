@@ -14,6 +14,8 @@ import {
   runBrowserChat,
   fetchStaticModelCatalog,
   transcribeBrowserGemini,
+  getBrowserModelCacheInfo,
+  clearBrowserModelCache,
   BROWSER_LOCAL_MODELS,
   GROQ_MODELS,
   WEB_FREE_MODELS,
@@ -236,7 +238,10 @@ export function mountAI(container) {
                 <span>Ücretsiz limit dolarsa yedek OpenCode modeline geç</span>
               </label>
             </div>
-            <button class="btn-primary btn-sm" id="cfg-save-btn" type="button">Kaydet</button>
+            <div class="cfg-actions" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+              <button class="btn-ghost btn-sm" id="cfg-clear-cache-btn" type="button" title="İndirilen Tarayıcı İçi AI modellerini (transformers-cache) sil">Model Önbelleğini Sil (0 MB)</button>
+              <button class="btn-primary btn-sm" id="cfg-save-btn" type="button">Kaydet</button>
+            </div>
           </div>
         </div>
 
@@ -368,6 +373,7 @@ export function mountAI(container) {
   const cfgApiKey = container.querySelector('#cfg-api-key');
   const cfgUrlWrap = container.querySelector('#cfg-url-wrap');
   const cfgBaseUrl = container.querySelector('#cfg-base-url');
+  const cfgClearCacheBtn = container.querySelector('#cfg-clear-cache-btn');
   const cfgSaveBtn = container.querySelector('#cfg-save-btn');
   const optAutoExec = container.querySelector('#opt-autoexec');
   const optAutoFallback = container.querySelector('#opt-autofallback');
@@ -811,9 +817,27 @@ export function mountAI(container) {
     });
   });
 
+  async function refreshCacheButtonLabel() {
+    if (!cfgClearCacheBtn) return;
+    const info = await getBrowserModelCacheInfo();
+    const mb = info.bytes > 0 ? (info.bytes / (1024 * 1024)).toFixed(1) : '0';
+    cfgClearCacheBtn.textContent = info.bytes > 0
+      ? `Model Önbelleğini Sil (${mb} MB)`
+      : 'Model Önbelleğini Sil (Boş)';
+    cfgClearCacheBtn.disabled = info.entries === 0;
+  }
+
   cfgToggleBtn.addEventListener('click', () => {
     cfgDrawer.hidden = !cfgDrawer.hidden;
+    if (!cfgDrawer.hidden) refreshCacheButtonLabel();
     sound.tickSound(0.5);
+  });
+
+  cfgClearCacheBtn?.addEventListener('click', async () => {
+    await clearBrowserModelCache();
+    await refreshCacheButtonLabel();
+    sound.chime(520);
+    statusNote.textContent = 'Tarayıcı içi model önbelleği (transformers-cache) silindi ✓';
   });
 
   cfgSaveBtn.addEventListener('click', () => {
