@@ -10,6 +10,7 @@
  */
 import { store } from '../store.js';
 import { sound } from '../audio.js';
+import { runBrowserChat, fetchStaticModelCatalog, transcribeBrowserGemini, WEB_FREE_MODELS } from '../client-ai.js';
 
 const { S, step, clamp, register, svg } = window.Motion;
 
@@ -17,9 +18,10 @@ const TRACK_NAMES = ['Gece Yağmuru', 'Obsidian Lo-Fi', 'Derin Yörünge', 'Atö
 
 const PROVIDER_META = {
   opencode: { label: 'OpenCode Zen', short: 'OpenCode', needsKey: false, needsUrl: false, defaultModel: 'mimo-v2.6-flash-free' },
-  pollinations: { label: 'Pollinations', short: 'Pollinations', needsKey: false, needsUrl: false, defaultModel: 'openai' },
+  llm7: { label: 'LLM7 Ücretsiz', short: 'LLM7', needsKey: false, needsUrl: false, defaultModel: 'codestral-latest' },
+  pollinations: { label: 'Pollinations', short: 'Pollinations', needsKey: false, needsUrl: false, defaultModel: 'openai-fast' },
   gemini: { label: 'Google Gemini', short: 'Gemini', needsKey: true, needsUrl: false, defaultModel: 'gemini-2.5-flash' },
-  openai: { label: 'OpenAI', short: 'OpenAI', needsKey: true, needsUrl: false, defaultModel: 'gpt-4.1-mini' },
+  openai: { label: 'OpenAI', short: 'OpenAI', needsKey: true, needsUrl: false, defaultModel: 'gpt-4o-mini' },
   openrouter: { label: 'OpenRouter', short: 'OpenRouter', needsKey: true, needsUrl: false, defaultModel: 'anthropic/claude-sonnet-4' },
   anthropic: { label: 'Anthropic Claude', short: 'Claude', needsKey: true, needsUrl: false, defaultModel: 'claude-sonnet-4-20250514' },
   ollama: { label: 'Yerel Ollama', short: 'Ollama', needsKey: false, needsUrl: false, defaultModel: 'llama3.2' },
@@ -47,8 +49,13 @@ const SUGGESTIONS = [
   'Bana bugün için 3 maddelik verimli yazılım geliştirme planı yap ve görev listeme işle.',
 ];
 
-// Clean fallback catalog until /api/models returns live data
+// Clean fallback catalog until /api/models or client discovery resolves
 const INITIAL_SECTIONS = [
+  {
+    key: 'web_free',
+    label: 'Ücretsiz Web Havuzu (GitHub Pages Hazır)',
+    models: WEB_FREE_MODELS,
+  },
   {
     key: 'opencode_free',
     label: 'OpenCode Ücretsiz (Zen)',
@@ -388,7 +395,9 @@ export function mountAI(container) {
   let sections = structuredClone(INITIAL_SECTIONS);
   let activeModalTab = 'all';
   let ollamaOnline = false;
-  let opencodeAvailable = true;
+  let opencodeAvailable = false;
+  let localBridgeOnline = false;
+  let userSelectedModel = false;
 
   // Physics State
   const voiceGainS = S(0, 140, 14);
@@ -489,32 +498,64 @@ export function mountAI(container) {
     cfgDrawerProvider.textContent = `${pmeta.label.toUpperCase()} AYARLARI`;
     cfgKeyLabel.textContent = `${pmeta.label} API Anahtarı (Tarayıcıda Yerel Saklanır)`;
     cfgApiKey.value = c.apiKeys[c.provider] || '';
-    const hideKey = c.provider === 'opencode' || c.provider === 'pollinations' || c.provider === 'ollama';
+    const hideKey = c.provider === 'opencode' || c.provider === 'pollinations' || c.provider === 'llm7' || c.provider === 'ollama';
     cfgKeyWrap.style.display = hideKey ? 'none' : 'flex';
     cfgUrlWrap.style.display = pmeta.needsUrl || c.provider === 'openai' ? 'flex' : 'none';
   }
 
-  // ---- Live Model Catalog Loading ----
+  // ---- Live Model Catalog Loading (Local Bridge OR Browser-Direct GitHub Pages) ----
   async function loadModels() {
     const c = store.state.aiConfig;
+    let loadedLocal = false;
     try {
       const qs = new URLSearchParams({ provider: c.provider, apiKey: c.apiKeys[c.provider] || '' });
       const res = await fetch(`/api/models?${qs.toString()}`);
-      if (!res.ok) return;
-      const data = await res.json();
-      if (Array.isArray(data.sections) && data.sections.length) {
-        sections = data.sections;
-      }
-      ollamaOnline = Boolean(data.ollamaOnline);
-      opencodeAvailable = Boolean(data.opencodeAvailable);
-      mmOllamaStatus.textContent = `OpenCode Zen: ${opencodeAvailable ? 'Hazır ✓' : 'Offline'} · Ollama: ${ollamaOnline ? 'Açık ✓' : 'Kapalı'}`;
-      syncHarnessUI();
-      if (modalBackdrop.classList.contains('open')) {
-        renderModalTabs();
-        renderModalModels();
+      const ctype = res.headers.get('content-type') || '';
+      if (res.ok && ctype.includes('application/json')) {
+        const data = await res.json();
+        if (Array.isArray(data.sections) && data.sections.length) {
+          sections = data.sections;
+        }
+        localBridgeOnline = true;
+        ollamaOnline = Boolean(data.ollamaOnline);
+        opencodeAvailable = Boolean(data.opencodeAvailable);
+        mmOllamaStatus.textContent = `Yerel Bridge ✓ · OpenCode: ${opencodeAvailable ? 'Hazır ✓' : 'Offline'} · Ollama: ${ollamaOnline ? 'Açık ✓' : 'Kapalı'}`;
+        loadedLocal = true;
       }
     } catch {
-      /* fallback catalog stays active */
+      /* static hosting mode */
+    }
+
+    if (!loadedLocal) {
+      localBridgeOnline = false;
+      opencodeAvailable = false;
+      try {
+        const staticData = await fetchStaticModelCatalog({
+          baseSections: INITIAL_SECTIONS,
+          apiKey: c.apiKeys[c.provider] || '',
+          provider: c.provider,
+        });
+        if (Array.isArray(staticData.sections) && staticData.sections.length) {
+          sections = staticData.sections;
+        }
+        ollamaOnline = Boolean(staticData.ollamaOnline);
+      } catch {
+        /* retain INITIAL_SECTIONS */
+      }
+
+      if (!userSelectedModel && c.provider === 'opencode') {
+        c.provider = 'pollinations';
+        c.model = 'openai-fast';
+        store.persist();
+      }
+      mmOllamaStatus.textContent = `GitHub Pages · Tarayıcı Direkt Modu ✓ · Ollama: ${ollamaOnline ? 'Açık ✓' : 'Kapalı'}`;
+      statusNote.textContent = 'Tarayıcı Direkt Modu · Ücretsiz Web Modelleri Hazır';
+    }
+
+    syncHarnessUI();
+    if (modalBackdrop.classList.contains('open')) {
+      renderModalTabs();
+      renderModalModels();
     }
   }
 
@@ -525,7 +566,14 @@ export function mountAI(container) {
       { key: 'all', label: 'Tümü', count: totalCount },
       ...sections.map(sec => ({
         key: sec.key,
-        label: sec.key === 'opencode_free' ? 'OpenCode Ücretsiz' : sec.key === 'opencode_pro' ? 'OpenCode Pro' : sec.label,
+        label:
+          sec.key === 'web_free'
+            ? 'Ücretsiz Web'
+            : sec.key === 'opencode_free'
+              ? 'OpenCode Ücretsiz'
+              : sec.key === 'opencode_pro'
+                ? 'OpenCode Pro'
+                : sec.label,
         count: (sec.models || []).length,
       })),
     ];
@@ -621,6 +669,7 @@ export function mountAI(container) {
 
   function selectModel(provider, modelId) {
     const c = store.state.aiConfig;
+    userSelectedModel = true;
     c.provider = provider;
     c.model = modelId;
     store.persist();
@@ -1051,29 +1100,53 @@ export function mountAI(container) {
     sendBtn.disabled = true;
 
     try {
-      const res = await fetch('/api/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          provider: c.provider,
-          model: c.model,
-          effort: c.effort,
-          agentMode: c.agentMode,
-          autoFallback: c.autoFallback,
-          apiKey: c.apiKeys[c.provider] || '',
-          baseUrl: c.baseUrl,
-          messages: store.state.chatHistory.slice(-14),
-          appState: store.getAgentContextSnapshot(),
-        }),
-      });
-      const data = await res.json();
+      const payload = {
+        provider: c.provider,
+        model: c.model,
+        effort: c.effort,
+        agentMode: c.agentMode,
+        autoFallback: c.autoFallback,
+        apiKey: c.apiKeys[c.provider] || '',
+        baseUrl: c.baseUrl,
+        messages: store.state.chatHistory.slice(-14),
+        appState: store.getAgentContextSnapshot(),
+      };
+
+      let resOk = false;
+      let data = null;
+
+      // 1. Use local Python bridge if available (OpenCode Zen + Whisper)
+      if (localBridgeOnline) {
+        try {
+          const res = await fetch('/api/chat', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+          });
+          const ctype = res.headers.get('content-type') || '';
+          if (ctype.includes('application/json')) {
+            data = await res.json();
+            resOk = res.ok;
+          } else if (res.status === 404 || res.status === 405 || res.status === 502) {
+            localBridgeOnline = false;
+          }
+        } catch {
+          localBridgeOnline = false;
+        }
+      }
+
+      // 2. Browser-Direct execution for GitHub Pages / static hosts (and failover)
+      if (!data) {
+        data = await runBrowserChat(payload);
+        resOk = Boolean(data?.ok);
+      }
 
       thinking = false;
       syncOrbLiveClass();
       gooThinkRow.classList.remove('active');
       store.emit('ai-state', 'idle');
 
-      if (!res.ok || !data.ok) {
+      if (!resOk || !data?.ok) {
         const errMsg = data?.error || 'Modelden yanıt alınamadı.';
         store.state.chatHistory.push({
           role: 'assistant',
@@ -1136,21 +1209,22 @@ export function mountAI(container) {
         utt.lang = 'tr-TR';
         window.speechSynthesis.speak(utt);
       }
-    } catch {
+    } catch (err) {
       thinking = false;
       syncOrbLiveClass();
       gooThinkRow.classList.remove('active');
       store.emit('ai-state', 'idle');
+      const detail = err?.message ? ` (${err.message})` : '';
       store.state.chatHistory.push({
         role: 'assistant',
         provider: 'atelier',
         model: 'harness',
-        content: `**Ağ Hatası:** Yerel sunucuya (/api/chat) ulaşılamadı. Sunucunun çalıştığından emin ol.`,
+        content: `**Bağlantı Notu:** Model isteği tamamlanamadı${detail}. Üstten başka bir ücretsiz model seçip tekrar deneyebilirsin.`,
         time: nowTimeStr(),
       });
       store.persist();
       renderChatFeed();
-      statusNote.textContent = 'Sunucu bağlantısı kesildi';
+      statusNote.textContent = 'Model isteği başarısız · Başka model dene';
     } finally {
       thinking = false;
       syncOrbLiveClass();
@@ -1250,6 +1324,18 @@ export function mountAI(container) {
     const b64 = await blobToBase64(blob);
     if (!b64) return { ok: false, text: '' };
     const c = store.state.aiConfig;
+
+    if (!localBridgeOnline) {
+      if (!partial && c.apiKeys.gemini) {
+        return await transcribeBrowserGemini({
+          apiKey: c.apiKeys.gemini,
+          base64Audio: b64,
+          mimeType: blob.type || 'audio/webm',
+        });
+      }
+      return { ok: false, text: '' };
+    }
+
     const res = await fetch('/api/transcribe', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },

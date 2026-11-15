@@ -283,9 +283,14 @@ def list_all_models(api_key="", provider="opencode"):
     opencode_free = [m for m in zen_models if m["free"]]
     opencode_pro = [m for m in zen_models if not m["free"]]
 
-    pollinations = [
-        {"id": "openai", "name": "Pollinations · OpenAI", "provider": "pollinations", "free": True, "reasoning": False, "tools": True, "supportsVariant": False, "multimodal": False, "context": 128000, "description": "Ücretsiz genel amaçlı model (45sn IP limiti uygulanabilir)"},
-        {"id": "openai-fast", "name": "Pollinations · GPT-OSS 20B", "provider": "pollinations", "free": True, "reasoning": True, "tools": True, "supportsVariant": False, "multimodal": False, "context": 128000, "description": "Hızlı açık ağırlıklı reasoning modeli"},
+    web_free = [
+        {"id": "codestral-latest", "name": "Codestral Latest (LLM7 Free)", "provider": "llm7", "free": True, "reasoning": False, "tools": True, "supportsVariant": False, "multimodal": False, "context": 256000, "description": "Tarayıcı & yerel uyumlu ücretsiz LLM7 modeli"},
+        {"id": "openai-fast", "name": "GPT-OSS 20B Reasoning (Pollinations)", "provider": "pollinations", "free": True, "reasoning": True, "tools": True, "supportsVariant": False, "multimodal": False, "context": 128000, "description": "Ücretsiz reasoning destekli Pollinations modeli"},
+        {"id": "minimax-m2.7", "name": "MiniMax M2.7 (LLM7 Free)", "provider": "llm7", "free": True, "reasoning": True, "tools": True, "supportsVariant": False, "multimodal": False, "context": 200000, "description": "LLM7 ücretsiz akıl yürütme modeli"},
+        {"id": "DeepSeek-V4-Flash-0731", "name": "DeepSeek V4 Flash (LLM7 Free)", "provider": "llm7", "free": True, "reasoning": True, "tools": True, "supportsVariant": False, "multimodal": False, "context": 400000, "description": "LLM7 400K bağlamlı ücretsiz model"},
+        {"id": "glm-5.3-flash", "name": "GLM 5.3 Flash (LLM7 Free)", "provider": "llm7", "free": True, "reasoning": True, "tools": True, "supportsVariant": False, "multimodal": False, "context": 200000, "description": "LLM7 ücretsiz GLM reasoning modeli"},
+        {"id": "gpt-oss:20b", "name": "GPT-OSS 20B (LLM7 Free)", "provider": "llm7", "free": True, "reasoning": False, "tools": True, "supportsVariant": False, "multimodal": False, "context": 128000, "description": "LLM7 açık ağırlıklı 20B modeli"},
+        {"id": "openai", "name": "Pollinations · OpenAI Router", "provider": "pollinations", "free": True, "reasoning": True, "tools": True, "supportsVariant": False, "multimodal": False, "context": 128000, "description": "Ücretsiz genel amaçlı model (45sn IP limiti uygulanabilir)"},
         {"id": "mistral", "name": "Pollinations · Mistral Small", "provider": "pollinations", "free": True, "reasoning": False, "tools": True, "supportsVariant": False, "multimodal": False, "context": 128000, "description": "Hızlı ve akıcı metin/kod yanıtları"},
         {"id": "searchgpt", "name": "Pollinations · SearchGPT", "provider": "pollinations", "free": True, "reasoning": False, "tools": False, "supportsVariant": False, "multimodal": False, "context": 128000, "description": "Güncel web arama destekli yanıt"},
     ]
@@ -366,8 +371,8 @@ def list_all_models(api_key="", provider="opencode"):
         "ollamaOnline": bool(ollama),
         "sections": [
             {"key": "opencode_free", "label": "OpenCode Ücretsiz (Zen)", "models": opencode_free},
+            {"key": "web_free", "label": "Ücretsiz Web Havuzu (GitHub Pages Uyumlu)", "models": web_free},
             {"key": "opencode_pro", "label": "OpenCode Tüm Modeller (Go/Key)", "models": opencode_pro},
-            {"key": "pollinations", "label": "Pollinations Ücretsiz", "models": pollinations},
             {"key": "gemini", "label": "Google Gemini", "models": gemini},
             {"key": "openai", "label": "OpenAI", "models": openai},
             {"key": "openrouter", "label": "OpenRouter", "models": openrouter},
@@ -769,6 +774,12 @@ class AtelierHandler(http.server.SimpleHTTPRequestHandler):
 
     def do_GET(self):
         parsed = urllib.parse.urlparse(self.path)
+        if parsed.path == "/api/health":
+            return self.send_json(200, {
+                "ok": True,
+                "opencode": os.path.exists(OPENCODE_BIN),
+                "whisper": WHISPER_CLI.exists(),
+            })
         if parsed.path == "/api/github":
             return self.send_json(200, fetch_github_data())
         if parsed.path == "/api/models":
@@ -802,7 +813,16 @@ class AtelierHandler(http.server.SimpleHTTPRequestHandler):
 
                 reasoning = ""
                 tokens = None
-                if provider == "pollinations":
+                if provider == "llm7":
+                    try:
+                        reply, reasoning, tools, tokens = call_openai_like(
+                            "https://api.llm7.io/v1/chat/completions", "", model, messages, app_state, effort, agent_mode, send_tools=True
+                        )
+                    except Exception:
+                        reply, reasoning, tools, tokens = call_openai_like(
+                            "https://api.llm7.io/v1/chat/completions", "", model, messages, app_state, effort, agent_mode, send_tools=False
+                        )
+                elif provider == "pollinations":
                     try:
                         reply, reasoning, tools, tokens = call_openai_like(
                             "https://text.pollinations.ai/openai", "", model, messages, app_state, effort, agent_mode, send_tools=True
