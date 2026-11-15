@@ -283,16 +283,24 @@ def list_all_models(api_key="", provider="opencode"):
     opencode_free = [m for m in zen_models if m["free"]]
     opencode_pro = [m for m in zen_models if not m["free"]]
 
+    browser_free = [
+        {"id": "onnx-community/Qwen2.5-0.5B-Instruct", "name": "Qwen 2.5 0.5B (Tarayıcı İçi Yerel AI)", "provider": "browser", "free": True, "reasoning": False, "tools": False, "supportsVariant": False, "multimodal": False, "context": 32768, "description": "%100 tarayıcında çalışır · Ortak limit YOK, tamamen kişiye özel (WebGPU/WASM)"},
+        {"id": "onnx-community/SmolLM2-360M-Instruct", "name": "SmolLM2 360M (Hafif Tarayıcı İçi AI)", "provider": "browser", "free": True, "reasoning": False, "tools": False, "supportsVariant": False, "multimodal": False, "context": 8192, "description": "Ultra hafif · Yalnızca kendi tarayıcında çalışır, başkasıyla limit paylaşmaz"},
+    ]
+
     web_free = [
-        {"id": "codestral-latest", "name": "Codestral Latest (LLM7 Free)", "provider": "llm7", "free": True, "reasoning": False, "tools": True, "supportsVariant": False, "multimodal": False, "context": 256000, "description": "Tarayıcı & yerel uyumlu ücretsiz LLM7 modeli"},
-        {"id": "openai-fast", "name": "GPT-OSS 20B Reasoning (Pollinations)", "provider": "pollinations", "free": True, "reasoning": True, "tools": True, "supportsVariant": False, "multimodal": False, "context": 128000, "description": "Ücretsiz reasoning destekli Pollinations modeli"},
-        {"id": "minimax-m2.7", "name": "MiniMax M2.7 (LLM7 Free)", "provider": "llm7", "free": True, "reasoning": True, "tools": True, "supportsVariant": False, "multimodal": False, "context": 200000, "description": "LLM7 ücretsiz akıl yürütme modeli"},
-        {"id": "DeepSeek-V4-Flash-0731", "name": "DeepSeek V4 Flash (LLM7 Free)", "provider": "llm7", "free": True, "reasoning": True, "tools": True, "supportsVariant": False, "multimodal": False, "context": 400000, "description": "LLM7 400K bağlamlı ücretsiz model"},
-        {"id": "glm-5.3-flash", "name": "GLM 5.3 Flash (LLM7 Free)", "provider": "llm7", "free": True, "reasoning": True, "tools": True, "supportsVariant": False, "multimodal": False, "context": 200000, "description": "LLM7 ücretsiz GLM reasoning modeli"},
-        {"id": "gpt-oss:20b", "name": "GPT-OSS 20B (LLM7 Free)", "provider": "llm7", "free": True, "reasoning": False, "tools": True, "supportsVariant": False, "multimodal": False, "context": 128000, "description": "LLM7 açık ağırlıklı 20B modeli"},
-        {"id": "openai", "name": "Pollinations · OpenAI Router", "provider": "pollinations", "free": True, "reasoning": True, "tools": True, "supportsVariant": False, "multimodal": False, "context": 128000, "description": "Ücretsiz genel amaçlı model (45sn IP limiti uygulanabilir)"},
+        {"id": "openai-fast", "name": "GPT-OSS 20B Reasoning (Pollinations)", "provider": "pollinations", "free": True, "reasoning": True, "tools": True, "supportsVariant": False, "multimodal": False, "context": 128000, "description": "Tarayıcıdan doğrudan çalışır (IP başına 45sn limit veya kendi Pollen key'inle limitsiz)"},
+        {"id": "openai", "name": "Pollinations · OpenAI Router", "provider": "pollinations", "free": True, "reasoning": True, "tools": True, "supportsVariant": False, "multimodal": False, "context": 128000, "description": "Ziyaretçi IP'sine özel ücretsiz Pollinations modeli (veya kendi anahtarınla limitsiz)"},
         {"id": "mistral", "name": "Pollinations · Mistral Small", "provider": "pollinations", "free": True, "reasoning": False, "tools": True, "supportsVariant": False, "multimodal": False, "context": 128000, "description": "Hızlı ve akıcı metin/kod yanıtları"},
-        {"id": "searchgpt", "name": "Pollinations · SearchGPT", "provider": "pollinations", "free": True, "reasoning": False, "tools": False, "supportsVariant": False, "multimodal": False, "context": 128000, "description": "Güncel web arama destekli yanıt"},
+        {"id": "codestral-latest", "name": "Codestral Latest (LLM7)", "provider": "llm7", "free": True, "reasoning": False, "tools": True, "supportsVariant": False, "multimodal": False, "context": 256000, "description": "LLM7 hızlı kod & sohbet (Paylaşımlı havuz veya kendi ücretsiz LLM7 token'ın)"},
+        {"id": "gpt-oss:20b", "name": "GPT-OSS 20B (LLM7)", "provider": "llm7", "free": True, "reasoning": False, "tools": True, "supportsVariant": False, "multimodal": False, "context": 128000, "description": "LLM7 açık ağırlıklı 20B modeli (kendi token'ınla kişisel limit)"},
+        {"id": "glm-5.3-flash", "name": "GLM 5.3 Flash (LLM7)", "provider": "llm7", "free": True, "reasoning": True, "tools": True, "supportsVariant": False, "multimodal": False, "context": 200000, "description": "LLM7 ücretsiz GLM reasoning modeli"},
+    ]
+
+    groq = [
+        {"id": "llama-3.3-70b-versatile", "name": "Groq · Llama 3.3 70B Versatile", "provider": "groq", "free": True, "reasoning": False, "tools": True, "supportsVariant": False, "multimodal": False, "context": 128000, "description": "Ücretsiz kendi Groq anahtarınla günde 14.400 istek · Kişiye özel tam izole limit"},
+        {"id": "llama-3.1-8b-instant", "name": "Groq · Llama 3.1 8B Instant", "provider": "groq", "free": True, "reasoning": False, "tools": True, "supportsVariant": False, "multimodal": False, "context": 128000, "description": "Ultra hızlı ücretsiz kendi Groq API anahtarınla anında yanıt"},
+        {"id": "qwen/qwen3-32b", "name": "Groq · Qwen3 32B Reasoning", "provider": "groq", "free": True, "reasoning": True, "tools": True, "supportsVariant": True, "multimodal": False, "context": 131072, "description": "Ücretsiz kendi Groq anahtarınla derin akıl yürütme"},
     ]
 
     gemini = [
@@ -371,7 +379,9 @@ def list_all_models(api_key="", provider="opencode"):
         "ollamaOnline": bool(ollama),
         "sections": [
             {"key": "opencode_free", "label": "OpenCode Ücretsiz (Zen)", "models": opencode_free},
-            {"key": "web_free", "label": "Ücretsiz Web Havuzu (GitHub Pages Uyumlu)", "models": web_free},
+            {"key": "browser_free", "label": "Tarayıcı İçi Yerel AI (%100 Kişiye Özel Limitsiz)", "models": browser_free},
+            {"key": "web_free", "label": "Ücretsiz Web Havuzu (Pollinations & LLM7)", "models": web_free},
+            {"key": "groq", "label": "Groq (Ücretsiz Kendi Anahtarın · Kişisel Limit)", "models": groq},
             {"key": "opencode_pro", "label": "OpenCode Tüm Modeller (Go/Key)", "models": opencode_pro},
             {"key": "gemini", "label": "Google Gemini", "models": gemini},
             {"key": "openai", "label": "OpenAI", "models": openai},
@@ -539,7 +549,7 @@ def call_opencode_with_failover(model_id, effort, messages, app_state, agent_mod
     return res
 
 
-def call_openai_like(endpoint, api_key, model, messages, app_state, effort="auto", agent_mode="build", extra_headers=None, send_tools=True):
+def call_openai_like(endpoint, api_key, model, messages, app_state, effort="auto", agent_mode="build", extra_headers=None, send_tools=True, send_effort=True, timeout=60):
     sys_msg = {"role": "system", "content": build_system_prompt(app_state, effort, agent_mode)}
     clean_msgs = [sys_msg] + [
         {"role": m.get("role", "user"), "content": str(m.get("content", ""))}
@@ -547,10 +557,11 @@ def call_openai_like(endpoint, api_key, model, messages, app_state, effort="auto
         if m.get("role") in ("user", "assistant")
     ]
     payload = {"model": model, "messages": clean_msgs, "temperature": 0.7}
-    if effort in ("low", "medium", "high"):
-        payload["reasoning_effort"] = effort
-    elif effort == "max":
-        payload["reasoning_effort"] = "high"
+    if send_effort:
+        if effort in ("low", "medium", "high"):
+            payload["reasoning_effort"] = effort
+        elif effort == "max":
+            payload["reasoning_effort"] = "high"
 
     if send_tools and agent_mode != "chat":
         payload["tools"] = ATELIER_TOOLS
@@ -562,7 +573,7 @@ def call_openai_like(endpoint, api_key, model, messages, app_state, effort="auto
     if extra_headers:
         headers.update(extra_headers)
 
-    _, data = http_json(endpoint, method="POST", body=payload, headers=headers, timeout=60)
+    _, data = http_json(endpoint, method="POST", body=payload, headers=headers, timeout=timeout)
     choice = (data.get("choices") or [{}])[0]
     msg = choice.get("message") or {}
     text = msg.get("content") or ""
@@ -814,23 +825,42 @@ class AtelierHandler(http.server.SimpleHTTPRequestHandler):
                 reasoning = ""
                 tokens = None
                 if provider == "llm7":
+                    llm7_effort = model in ("glm-5.3-flash", "DeepSeek-V4-Flash-0731", "minimax-m2.7")
                     try:
                         reply, reasoning, tools, tokens = call_openai_like(
-                            "https://api.llm7.io/v1/chat/completions", "", model, messages, app_state, effort, agent_mode, send_tools=True
+                            "https://api.llm7.io/v1/chat/completions", api_key, model, messages, app_state, effort, agent_mode, send_tools=True, send_effort=llm7_effort, timeout=12
                         )
-                    except Exception:
+                    except urllib.error.HTTPError as he:
+                        if he.code != 400:
+                            raise
                         reply, reasoning, tools, tokens = call_openai_like(
-                            "https://api.llm7.io/v1/chat/completions", "", model, messages, app_state, effort, agent_mode, send_tools=False
+                            "https://api.llm7.io/v1/chat/completions", api_key, model, messages, app_state, effort, agent_mode, send_tools=False, send_effort=False, timeout=12
                         )
                 elif provider == "pollinations":
                     try:
                         reply, reasoning, tools, tokens = call_openai_like(
-                            "https://text.pollinations.ai/openai", "", model, messages, app_state, effort, agent_mode, send_tools=True
+                            "https://text.pollinations.ai/openai", api_key, model, messages, app_state, effort, agent_mode, send_tools=True, timeout=18
                         )
-                    except Exception:
+                    except urllib.error.HTTPError as he:
+                        if he.code != 400:
+                            raise
                         reply, reasoning, tools, tokens = call_openai_like(
-                            "https://text.pollinations.ai/openai", "", model, messages, app_state, effort, agent_mode, send_tools=False
+                            "https://text.pollinations.ai/openai", api_key, model, messages, app_state, effort, agent_mode, send_tools=False, send_effort=False, timeout=18
                         )
+                elif provider == "groq":
+                    if not api_key:
+                        return self.send_json(400, {"ok": False, "error": "Groq için ücretsiz kişisel API anahtarı gerekiyor (console.groq.com)."})
+                    reply, reasoning, tools, tokens = call_openai_like(
+                        "https://api.groq.com/openai/v1/chat/completions",
+                        api_key,
+                        model,
+                        messages,
+                        app_state,
+                        effort,
+                        agent_mode,
+                        send_effort="qwen" in model,
+                        timeout=25,
+                    )
                 elif provider == "ollama":
                     reply, reasoning, tools, tokens = call_ollama(model, messages, app_state, effort, agent_mode)
                 elif provider == "gemini":

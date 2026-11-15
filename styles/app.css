@@ -2348,6 +2348,36 @@ button {
   padding: 8px 14px;
 }
 
+.stop-harness-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 8px 14px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 96, 96, 0.45);
+  background: rgba(255, 72, 72, 0.16);
+  color: #ffb3b3;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 160ms ease, border-color 160ms ease, transform 140ms ease;
+}
+
+.stop-harness-btn:hover {
+  background: rgba(255, 72, 72, 0.28);
+  border-color: rgba(255, 118, 118, 0.72);
+  color: #fff;
+}
+
+.stop-harness-btn:active {
+  transform: scale(0.97);
+}
+
+.stop-harness-btn[hidden],
+.send-harness-btn[hidden] {
+  display: none;
+}
+
 .send-harness-btn kbd {
   padding: 1px 5px;
   border-radius: 4px;

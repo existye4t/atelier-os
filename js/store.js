@@ -32,6 +32,10 @@ const DEFAULT_STATE = {
     baseUrl: 'https://api.openai.com/v1',
     apiKeys: {
       opencode: '',
+      browser: '',
+      pollinations: '',
+      llm7: '',
+      groq: '',
       gemini: '',
       openai: '',
       openrouter: '',

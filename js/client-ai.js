@@ -74,25 +74,33 @@ const ATELIER_TOOLS = [
   },
 ];
 
-export const WEB_FREE_MODELS = [
-  { id: 'codestral-latest', name: 'Codestral Latest (LLM7 Free)', provider: 'llm7', free: true, reasoning: false, tools: true, supportsVariant: false, multimodal: false, context: 256000, description: 'GitHub Pages üzerinde anahtarsız çalışan hızlı kod & sohbet modeli' },
-  { id: 'openai-fast', name: 'GPT-OSS 20B Reasoning (Pollinations)', provider: 'pollinations', free: true, reasoning: true, tools: true, supportsVariant: false, multimodal: false, context: 128000, description: 'Tarayıcıdan doğrudan akıl yürütmeli ücretsiz Pollinations modeli' },
-  { id: 'minimax-m2.7', name: 'MiniMax M2.7 (LLM7 Free)', provider: 'llm7', free: true, reasoning: true, tools: true, supportsVariant: false, multimodal: false, context: 200000, description: 'Akıl yürütme ve araç çağrısı destekli ücretsiz web modeli' },
-  { id: 'DeepSeek-V4-Flash-0731', name: 'DeepSeek V4 Flash (LLM7 Free)', provider: 'llm7', free: true, reasoning: true, tools: true, supportsVariant: false, multimodal: false, context: 400000, description: 'Geniş bağlamlı DeepSeek akıl yürütme modeli (LLM7)' },
-  { id: 'glm-5.3-flash', name: 'GLM 5.3 Flash (LLM7 Free)', provider: 'llm7', free: true, reasoning: true, tools: true, supportsVariant: false, multimodal: false, context: 200000, description: 'Ücretsiz Zhipu GLM flash reasoning modeli' },
-  { id: 'gpt-oss:20b', name: 'GPT-OSS 20B (LLM7 Free)', provider: 'llm7', free: true, reasoning: false, tools: true, supportsVariant: false, multimodal: false, context: 128000, description: 'Açık ağırlıklı 20B genel amaçlı ücretsiz web modeli' },
-  { id: 'mistral-Nemo-Instruct-2407', name: 'Mistral Nemo (LLM7 Free)', provider: 'llm7', free: true, reasoning: false, tools: false, supportsVariant: false, multimodal: false, context: 128000, description: 'Hızlı ve hafif Mistral sohbet modeli' },
-  { id: 'openai', name: 'Pollinations · OpenAI Router', provider: 'pollinations', free: true, reasoning: true, tools: true, supportsVariant: false, multimodal: false, context: 128000, description: 'Pollinations ücretsiz genel model yönlendiricisi' },
-  { id: 'mistral', name: 'Pollinations · Mistral Small', provider: 'pollinations', free: true, reasoning: false, tools: true, supportsVariant: false, multimodal: false, context: 128000, description: 'Akıcı metin ve kod yanıtları' },
-  { id: 'searchgpt', name: 'Pollinations · SearchGPT', provider: 'pollinations', free: true, reasoning: false, tools: false, supportsVariant: false, multimodal: false, context: 128000, description: 'Güncel web arama destekli yanıt' },
+export const BROWSER_LOCAL_MODELS = [
+  { id: 'onnx-community/Qwen2.5-0.5B-Instruct', name: 'Qwen 2.5 0.5B (Tarayıcı İçi Yerel AI)', provider: 'browser', free: true, reasoning: false, tools: false, supportsVariant: false, multimodal: false, context: 32768, description: '%100 tarayıcında çalışır · Ortak limit YOK, tamamen kişiye özel (WebGPU/WASM)' },
+  { id: 'onnx-community/SmolLM2-360M-Instruct', name: 'SmolLM2 360M (Hafif Tarayıcı İçi AI)', provider: 'browser', free: true, reasoning: false, tools: false, supportsVariant: false, multimodal: false, context: 8192, description: 'Ultra hafif · Yalnızca kendi tarayıcında çalışır, başkasıyla limit paylaşmaz' },
 ];
+
+export const GROQ_MODELS = [
+  { id: 'llama-3.3-70b-versatile', name: 'Groq · Llama 3.3 70B Versatile', provider: 'groq', free: true, reasoning: false, tools: true, supportsVariant: false, multimodal: false, context: 128000, description: 'Ücretsiz kendi Groq anahtarınla günde 14.400 istek · Kişiye özel izole limit' },
+  { id: 'llama-3.1-8b-instant', name: 'Groq · Llama 3.1 8B Instant', provider: 'groq', free: true, reasoning: false, tools: true, supportsVariant: false, multimodal: false, context: 128000, description: 'Ultra hızlı ücretsiz kendi Groq API anahtarınla anında yanıt' },
+  { id: 'qwen/qwen3-32b', name: 'Groq · Qwen3 32B Reasoning', provider: 'groq', free: true, reasoning: true, tools: true, supportsVariant: true, multimodal: false, context: 131072, description: 'Ücretsiz kendi Groq anahtarınla derin akıl yürütme' },
+];
+
+export const WEB_FREE_MODELS = [
+  { id: 'openai-fast', name: 'GPT-OSS 20B Reasoning (Pollinations)', provider: 'pollinations', free: true, reasoning: true, tools: true, supportsVariant: false, multimodal: false, context: 128000, description: 'Ziyaretçi IP\'sine özel ücretsiz (45sn limit veya kendi Pollen key\'inle limitsiz)' },
+  { id: 'openai', name: 'Pollinations · OpenAI Router', provider: 'pollinations', free: true, reasoning: true, tools: true, supportsVariant: false, multimodal: false, context: 128000, description: 'Ziyaretçi IP\'sine özel Pollinations genel model yönlendiricisi' },
+  { id: 'mistral', name: 'Pollinations · Mistral Small', provider: 'pollinations', free: true, reasoning: false, tools: true, supportsVariant: false, multimodal: false, context: 128000, description: 'Akıcı metin ve kod yanıtları (IP başına özel limit)' },
+  { id: 'codestral-latest', name: 'Codestral Latest (LLM7)', provider: 'llm7', free: true, reasoning: false, tools: true, supportsVariant: false, multimodal: false, context: 256000, description: 'Hızlı kod & sohbet (Paylaşımlı ücretsiz havuz veya kendi ücretsiz LLM7 token\'ın)' },
+  { id: 'gpt-oss:20b', name: 'GPT-OSS 20B (LLM7)', provider: 'llm7', free: true, reasoning: false, tools: true, supportsVariant: false, multimodal: false, context: 128000, description: 'Açık ağırlıklı 20B genel amaçlı model (kendi LLM7 token\'ınla kişisel limit)' },
+  { id: 'mistral-Nemo-Instruct-2407', name: 'Mistral Nemo (LLM7)', provider: 'llm7', free: true, reasoning: false, tools: false, supportsVariant: false, multimodal: false, context: 128000, description: 'Hızlı ve hafif Mistral sohbet modeli' },
+  { id: 'glm-5.3-flash', name: 'GLM 5.3 Flash (LLM7)', provider: 'llm7', free: true, reasoning: true, tools: true, supportsVariant: false, multimodal: false, context: 200000, description: 'Ücretsiz Zhipu GLM flash reasoning modeli' },
+];
+
+const LLM7_REASONING_MODELS = new Set(['glm-5.3-flash']);
 
 const BROWSER_FAILOVER_POOL = [
   ['pollinations', 'openai-fast'],
-  ['llm7', 'codestral-latest'],
-  ['llm7', 'minimax-m2.7'],
-  ['llm7', 'mistral-Nemo-Instruct-2407'],
   ['pollinations', 'openai'],
+  ['llm7', 'codestral-latest'],
   ['llm7', 'gpt-oss:20b'],
 ];
 
@@ -142,9 +150,22 @@ function extractInlineActions(text) {
   return { cleaned, actions };
 }
 
-async function fetchJsonWithTimeout(url, options = {}, timeoutMs = 35000) {
+async function fetchJsonWithTimeout(url, options = {}, timeoutMs = 20000, externalSignal = null) {
+  if (externalSignal?.aborted) {
+    const abortErr = new Error('İstek kullanıcı tarafından durduruldu.');
+    abortErr.name = 'AbortError';
+    throw abortErr;
+  }
+
   const ctrl = new AbortController();
-  const timer = setTimeout(() => ctrl.abort(new Error('Zaman aşımı')), timeoutMs);
+  let timedOut = false;
+  const onExternalAbort = () => ctrl.abort(externalSignal.reason || new Error('İstek kullanıcı tarafından durduruldu.'));
+  externalSignal?.addEventListener('abort', onExternalAbort, { once: true });
+  const timer = setTimeout(() => {
+    timedOut = true;
+    ctrl.abort(new Error('Zaman aşımı'));
+  }, timeoutMs);
+
   try {
     const res = await fetch(url, { ...options, signal: ctrl.signal });
     const text = await res.text();
@@ -158,12 +179,40 @@ async function fetchJsonWithTimeout(url, options = {}, timeoutMs = 35000) {
     }
     if (!json) throw new Error('Sunucudan geçersiz JSON yanıtı döndü.');
     return json;
+  } catch (err) {
+    if (externalSignal?.aborted) {
+      const abortErr = new Error('İstek kullanıcı tarafından durduruldu.');
+      abortErr.name = 'AbortError';
+      throw abortErr;
+    }
+    if (timedOut || err?.name === 'AbortError') {
+      const timeoutErr = new Error(`İstek ${Math.round(timeoutMs / 1000)}sn içinde yanıt vermedi (zaman aşımı).`);
+      timeoutErr.status = 408;
+      timeoutErr.isTimeout = true;
+      throw timeoutErr;
+    }
+    throw err;
   } finally {
     clearTimeout(timer);
+    externalSignal?.removeEventListener('abort', onExternalAbort);
   }
 }
 
-async function callOpenAiLikeDirect({ endpoint, apiKey, model, messages, appState, effort, agentMode, extraHeaders = {}, sendTools = true, sendEffort = true }) {
+async function callOpenAiLikeDirect({
+  endpoint,
+  apiKey,
+  model,
+  messages,
+  appState,
+  effort,
+  agentMode,
+  extraHeaders = {},
+  sendTools = true,
+  sendEffort = true,
+  timeoutMs = 20000,
+  signal = null,
+  noReferrer = false,
+}) {
   const sysMsg = { role: 'system', content: buildSystemPrompt(appState, effort, agentMode) };
   const cleanMsgs = [sysMsg, ...(messages || []).slice(-18).filter(m => m.role === 'user' || m.role === 'assistant').map(m => ({ role: m.role, content: String(m.content || '') }))];
 
@@ -180,7 +229,10 @@ async function callOpenAiLikeDirect({ endpoint, apiKey, model, messages, appStat
   const headers = { 'Content-Type': 'application/json', ...extraHeaders };
   if (apiKey) headers.Authorization = `Bearer ${apiKey}`;
 
-  const data = await fetchJsonWithTimeout(endpoint, { method: 'POST', headers, body: JSON.stringify(payload) });
+  const fetchOpts = { method: 'POST', headers, body: JSON.stringify(payload) };
+  if (noReferrer) fetchOpts.referrerPolicy = 'no-referrer';
+
+  const data = await fetchJsonWithTimeout(endpoint, fetchOpts, timeoutMs, signal);
   const msg = data?.choices?.[0]?.message || {};
   const toolCalls = [];
 
@@ -194,7 +246,7 @@ async function callOpenAiLikeDirect({ endpoint, apiKey, model, messages, appStat
   }
 
   const { cleaned, actions } = extractInlineActions(msg.content || '');
-  if (agentMode !== 'chat') toolCalls.extend?.(actions) ?? toolCalls.push(...actions);
+  if (agentMode !== 'chat') toolCalls.push(...actions);
   const usage = data?.usage;
   return {
     ok: true,
@@ -208,24 +260,20 @@ async function callOpenAiLikeDirect({ endpoint, apiKey, model, messages, appStat
 }
 
 async function callWithOptionalTools(opts) {
+  const initialTools = opts.allowTools ?? true;
+  const initialEffort = opts.allowEffort ?? true;
   try {
-    return await callOpenAiLikeDirect({ ...opts, sendTools: true, sendEffort: true });
+    return await callOpenAiLikeDirect({ ...opts, sendTools: initialTools, sendEffort: initialEffort });
   } catch (err) {
-    if (err?.status === 400) {
-      try {
-        return await callOpenAiLikeDirect({ ...opts, sendTools: false, sendEffort: true });
-      } catch (err2) {
-        if (err2?.status === 400) {
-          return await callOpenAiLikeDirect({ ...opts, sendTools: false, sendEffort: false });
-        }
-        throw err2;
-      }
+    if (err?.name === 'AbortError' || opts.signal?.aborted) throw err;
+    if (err?.status === 400 && (initialTools || initialEffort)) {
+      return await callOpenAiLikeDirect({ ...opts, sendTools: false, sendEffort: false });
     }
     throw err;
   }
 }
 
-async function callGeminiDirect({ apiKey, model, messages, appState, effort, agentMode }) {
+async function callGeminiDirect({ apiKey, model, messages, appState, effort, agentMode, signal = null }) {
   const cleanModel = (model || 'gemini-2.5-flash').replace(/^models\//, '');
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(cleanModel)}:generateContent?key=${encodeURIComponent(apiKey)}`;
   const contents = (messages || []).slice(-18).map(m => ({
@@ -245,7 +293,7 @@ async function callGeminiDirect({ apiKey, model, messages, appState, effort, age
     payload.tools = [{ functionDeclarations: ATELIER_TOOLS.map(t => t.function) }];
   }
 
-  const data = await fetchJsonWithTimeout(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+  const data = await fetchJsonWithTimeout(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }, 30000, signal);
   const parts = data?.candidates?.[0]?.content?.parts || [];
   const textParts = [];
   const reasonParts = [];
@@ -272,7 +320,7 @@ async function callGeminiDirect({ apiKey, model, messages, appState, effort, age
   };
 }
 
-async function callAnthropicDirect({ apiKey, model, messages, appState, effort, agentMode }) {
+async function callAnthropicDirect({ apiKey, model, messages, appState, effort, agentMode, signal = null }) {
   const cleanMsgs = (messages || []).slice(-18).filter(m => m.role === 'user' || m.role === 'assistant').map(m => ({ role: m.role, content: String(m.content || '') }));
   const payload = {
     model: model || 'claude-sonnet-4-20250514',
@@ -300,7 +348,7 @@ async function callAnthropicDirect({ apiKey, model, messages, appState, effort, 
       'anthropic-dangerous-direct-browser-access': 'true',
     },
     body: JSON.stringify(payload),
-  });
+  }, 30000, signal);
 
   const textParts = [];
   const reasonParts = [];
@@ -326,44 +374,207 @@ async function callAnthropicDirect({ apiKey, model, messages, appState, effort, 
   };
 }
 
+const localBrowserPipelines = new Map();
+let transformersModPromise = null;
+
+async function callBrowserLocalModel({ model, messages, appState, effort, agentMode, signal = null, onProgress = null }) {
+  if (signal?.aborted) {
+    const abortErr = new Error('İstek kullanıcı tarafından durduruldu.');
+    abortErr.name = 'AbortError';
+    throw abortErr;
+  }
+
+  const modelId = model || 'onnx-community/Qwen2.5-0.5B-Instruct';
+  onProgress?.('Tarayıcı İçi Yerel AI motoru yükleniyor...');
+
+  if (!transformersModPromise) {
+    transformersModPromise = import('https://cdn.jsdelivr.net/npm/@huggingface/transformers@3');
+  }
+  const tf = await transformersModPromise;
+  if (signal?.aborted) {
+    const abortErr = new Error('İstek kullanıcı tarafından durduruldu.');
+    abortErr.name = 'AbortError';
+    throw abortErr;
+  }
+
+  let pipe = localBrowserPipelines.get(modelId);
+  if (!pipe) {
+    const loadPipeline = async deviceOpts =>
+      tf.pipeline('text-generation', modelId, {
+        ...deviceOpts,
+        progress_callback: info => {
+          if (signal?.aborted) return;
+          if (info?.status === 'progress' && typeof info.progress === 'number') {
+            onProgress?.(`Model önbelleğe indiriliyor (%${Math.round(info.progress)}) — sonraki açılışta anında hazır`);
+          } else if (info?.status === 'initiate' && info.file) {
+            onProgress?.(`Yerel model dosyası hazırlanıyor: ${info.file.split('/').pop()}`);
+          } else if (info?.status === 'ready') {
+            onProgress?.('Yerel tarayıcı modeli hazırlandı, yanıt üretiliyor...');
+          }
+        },
+      });
+
+    try {
+      const hasWebGpu = typeof navigator !== 'undefined' && Boolean(navigator.gpu);
+      pipe = await loadPipeline(hasWebGpu ? { device: 'webgpu', dtype: 'q4f16' } : { device: 'wasm', dtype: 'q4' });
+    } catch {
+      pipe = await loadPipeline({ device: 'wasm', dtype: 'q4' });
+    }
+    localBrowserPipelines.set(modelId, pipe);
+  }
+
+  if (signal?.aborted) {
+    const abortErr = new Error('İstek kullanıcı tarafından durduruldu.');
+    abortErr.name = 'AbortError';
+    throw abortErr;
+  }
+
+  onProgress?.(`${modelId.split('/').pop()} tarayıcında yanıt üretiyor...`);
+
+  const chatMsgs = [
+    { role: 'system', content: buildSystemPrompt(appState, effort, agentMode) },
+    ...(messages || [])
+      .slice(-8)
+      .filter(m => m.role === 'user' || m.role === 'assistant')
+      .map(m => ({ role: m.role, content: String(m.content || '') })),
+  ];
+
+  const genOpts = {
+    max_new_tokens: effort === 'low' ? 160 : effort === 'max' ? 512 : 320,
+    do_sample: true,
+    temperature: 0.65,
+    top_p: 0.9,
+  };
+
+  let onAbortStop = null;
+  if (signal && tf.InterruptableStoppingCriteria) {
+    const stopper = new tf.InterruptableStoppingCriteria();
+    onAbortStop = () => stopper.interrupt();
+    signal.addEventListener('abort', onAbortStop, { once: true });
+    genOpts.stopping_criteria = tf.StoppingCriteriaList ? new tf.StoppingCriteriaList([stopper]) : [stopper];
+  }
+
+  let output;
+  try {
+    output = await pipe(chatMsgs, genOpts);
+  } finally {
+    if (onAbortStop) signal?.removeEventListener('abort', onAbortStop);
+  }
+
+  if (signal?.aborted) {
+    const abortErr = new Error('İstek kullanıcı tarafından durduruldu.');
+    abortErr.name = 'AbortError';
+    throw abortErr;
+  }
+
+  const generated = output?.[0]?.generated_text;
+  const lastContent = Array.isArray(generated)
+    ? String(generated[generated.length - 1]?.content || '')
+    : String(generated || '');
+  const { cleaned, actions } = extractInlineActions(lastContent.trim());
+
+  return {
+    ok: true,
+    reply: cleaned || (actions.length ? 'İstediğin eylemler hazırlandı.' : 'Tamamlandı.'),
+    reasoning: '',
+    toolCalls: agentMode === 'chat' ? [] : actions,
+    tokens: null,
+    cost: 0,
+    model: modelId,
+    provider: 'browser',
+  };
+}
+
+function formatFriendlyRateError(provider, err) {
+  const msg = String(err?.message || '');
+  if (provider === 'pollinations' && (err?.status === 402 || msg.includes('FREE_LIMIT'))) {
+    const waitMatch = msg.match(/Retry after\s+(\d+s)/i);
+    const waitTxt = waitMatch ? `${waitMatch[1]} bekle veya ` : '';
+    return new Error(`Pollinations IP bekleme süresi (${waitTxt}Ayarlar'a kendi ücretsiz Pollen key'ini ekle ya da "Tarayıcı İçi Yerel AI" kullan).`);
+  }
+  if (provider === 'llm7' && (err?.status === 429 || msg.toLowerCase().includes('quota'))) {
+    return new Error('LLM7 paylaşımlı ücretsiz havuzu şu an küresel olarak dolu (429). Kişiye özel tam izole limit için Ayarlar\'a kendi LLM7/Groq/Gemini anahtarını gir veya "Tarayıcı İçi Yerel AI" seç.');
+  }
+  return err;
+}
+
 async function runSingleBrowserProvider(req) {
-  const { provider, model, effort, agentMode, apiKey, baseUrl, messages, appState } = req;
+  const { provider, model, effort, agentMode, apiKey, baseUrl, messages, appState, signal = null, onProgress = null } = req;
+
+  if (provider === 'browser') {
+    return await callBrowserLocalModel({ model, messages, appState, effort, agentMode, signal, onProgress });
+  }
 
   if (provider === 'llm7') {
-    const out = await callWithOptionalTools({
-      endpoint: 'https://api.llm7.io/v1/chat/completions',
-      apiKey: '',
-      model: model || 'codestral-latest',
-      messages,
-      appState,
-      effort,
-      agentMode,
-    });
-    return { ...out, provider: 'llm7' };
+    const chosenModel = model || 'codestral-latest';
+    const allowEffort = LLM7_REASONING_MODELS.has(chosenModel);
+    try {
+      const out = await callWithOptionalTools({
+        endpoint: 'https://api.llm7.io/v1/chat/completions',
+        apiKey: apiKey || '',
+        model: chosenModel,
+        messages,
+        appState,
+        effort,
+        agentMode,
+        allowEffort,
+        timeoutMs: 9000,
+        signal,
+        noReferrer: !apiKey,
+      });
+      return { ...out, provider: 'llm7' };
+    } catch (err) {
+      throw formatFriendlyRateError('llm7', err);
+    }
   }
 
   if (provider === 'pollinations') {
+    try {
+      const out = await callWithOptionalTools({
+        endpoint: 'https://text.pollinations.ai/openai',
+        apiKey: apiKey || '',
+        model: model || 'openai-fast',
+        messages,
+        appState,
+        effort,
+        agentMode,
+        timeoutMs: 14000,
+        signal,
+        noReferrer: !apiKey,
+      });
+      return { ...out, provider: 'pollinations' };
+    } catch (err) {
+      throw formatFriendlyRateError('pollinations', err);
+    }
+  }
+
+  if (provider === 'groq') {
+    if (!apiKey) throw new Error('Groq için ücretsiz kişisel API anahtarı gerekiyor (console.groq.com).');
+    const chosenModel = model || 'llama-3.3-70b-versatile';
     const out = await callWithOptionalTools({
-      endpoint: 'https://text.pollinations.ai/openai',
-      apiKey: '',
-      model: model || 'openai-fast',
+      endpoint: 'https://api.groq.com/openai/v1/chat/completions',
+      apiKey,
+      model: chosenModel,
       messages,
       appState,
       effort,
       agentMode,
+      allowEffort: chosenModel.includes('qwen'),
+      timeoutMs: 20000,
+      signal,
     });
-    return { ...out, provider: 'pollinations' };
+    return { ...out, provider: 'groq' };
   }
 
   if (provider === 'gemini') {
     if (!apiKey) throw new Error('Gemini için API anahtarı gerekiyor.');
-    const out = await callGeminiDirect({ apiKey, model, messages, appState, effort, agentMode });
+    const out = await callGeminiDirect({ apiKey, model, messages, appState, effort, agentMode, signal });
     return { ...out, provider: 'gemini' };
   }
 
   if (provider === 'anthropic') {
     if (!apiKey) throw new Error('Claude (Anthropic) için API anahtarı gerekiyor.');
-    const out = await callAnthropicDirect({ apiKey, model, messages, appState, effort, agentMode });
+    const out = await callAnthropicDirect({ apiKey, model, messages, appState, effort, agentMode, signal });
     return { ...out, provider: 'anthropic' };
   }
 
@@ -378,6 +589,7 @@ async function runSingleBrowserProvider(req) {
       effort,
       agentMode,
       extraHeaders: { 'HTTP-Referer': location.origin, 'X-Title': 'Atelier OS' },
+      signal,
     });
     return { ...out, provider: 'openrouter' };
   }
@@ -386,7 +598,7 @@ async function runSingleBrowserProvider(req) {
     if (provider === 'openai' && !apiKey) throw new Error('OpenAI için API anahtarı gerekiyor.');
     let ep = (baseUrl || 'https://api.openai.com/v1').replace(/\/+$/, '');
     if (!ep.endsWith('/chat/completions')) ep = `${ep}/chat/completions`;
-    const out = await callWithOptionalTools({ endpoint: ep, apiKey, model, messages, appState, effort, agentMode });
+    const out = await callWithOptionalTools({ endpoint: ep, apiKey, model, messages, appState, effort, agentMode, signal });
     return { ...out, provider };
   }
 
@@ -399,7 +611,7 @@ async function runSingleBrowserProvider(req) {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ model, messages: cleanMsgs, stream: false }),
-    }, 60000);
+    }, 60000, signal);
     const { cleaned, actions } = extractInlineActions(data?.message?.content || '');
     return { ok: true, reply: cleaned, reasoning: '', toolCalls: agentMode === 'chat' ? [] : actions, tokens: null, cost: 0, model, provider: 'ollama' };
   }
@@ -409,45 +621,56 @@ async function runSingleBrowserProvider(req) {
 
 /**
  * Runs chat directly in browser when local server.py bridge is absent (GitHub Pages).
- * Transparently fails over OpenCode Zen & rate-limited free endpoints across the CORS web pool.
+ * Respects AbortSignal immediately and isolates visitor limits per user/IP/local engine.
  */
 export async function runBrowserChat(req) {
-  const { provider, model, autoFallback = true } = req;
+  const { provider, model, autoFallback = true, signal = null, onProgress = null } = req;
 
   if (provider !== 'opencode') {
     try {
       return await runSingleBrowserProvider(req);
     } catch (primaryErr) {
-      const canFailover = autoFallback && (provider === 'llm7' || provider === 'pollinations');
+      if (primaryErr?.name === 'AbortError' || signal?.aborted) throw primaryErr;
+      const canFailover = autoFallback && !req.apiKey && (provider === 'llm7' || provider === 'pollinations');
       if (!canFailover) throw primaryErr;
       for (const [altProv, altModel] of BROWSER_FAILOVER_POOL) {
+        if (signal?.aborted) throw primaryErr;
         if (altProv === provider && altModel === model) continue;
         try {
-          const res = await runSingleBrowserProvider({ ...req, provider: altProv, model: altModel });
+          onProgress?.(`${altModel} yedek rotası deneniyor...`);
+          const res = await runSingleBrowserProvider({ ...req, provider: altProv, model: altModel, apiKey: '' });
           return { ...res, fallbackFrom: `${provider}/${model}` };
-        } catch {
-          /* continue trying remaining free pool endpoints */
+        } catch (altErr) {
+          if (altErr?.name === 'AbortError' || signal?.aborted) throw altErr;
+          /* try remaining pool */
         }
       }
       throw primaryErr;
     }
   }
 
-  // OpenCode Zen CLI models require local server.py; on static GitHub Pages route cleanly via CORS free pool
+  // OpenCode Zen CLI models require local server.py; on static GitHub Pages route cleanly via per-visitor CORS pool
   if (!autoFallback) {
-    throw new Error('OpenCode Zen modelleri yerel bridge (server.py) gerektirir. GitHub Pages üzerinden devam etmek için Ücretsiz Web Havuzu modeline geç veya "Yedek modele otomatik geç" ayarını aç.');
+    throw new Error('OpenCode Zen modelleri yerel bridge (server.py) gerektirir. GitHub Pages üzerinden kendi özel limitinle devam etmek için Tarayıcı İçi Yerel AI, Pollinations veya Groq seç.');
   }
 
   let lastErr = null;
   for (const [altProv, altModel] of BROWSER_FAILOVER_POOL) {
+    if (signal?.aborted) {
+      const abortErr = new Error('İstek kullanıcı tarafından durduruldu.');
+      abortErr.name = 'AbortError';
+      throw abortErr;
+    }
     try {
-      const res = await runSingleBrowserProvider({ ...req, provider: altProv, model: altModel });
+      onProgress?.(`GitHub Pages tarayıcı rotası: ${altModel}...`);
+      const res = await runSingleBrowserProvider({ ...req, provider: altProv, model: altModel, apiKey: '' });
       return { ...res, fallbackFrom: `opencode/${model}` };
     } catch (err) {
+      if (err?.name === 'AbortError' || signal?.aborted) throw err;
       lastErr = err;
     }
   }
-  throw lastErr || new Error('Ücretsiz web model havuzundan şu an yanıt alınamadı; birkaç saniye sonra tekrar dene.');
+  throw lastErr || new Error('Ücretsiz web havuzunda şu an kota/bekleme süresi dolu. Kesintisiz limitsiz deneyim için "Tarayıcı İçi Yerel AI" modelini veya kendi ücretsiz Groq/Gemini anahtarını seçebilirsin.');
 }
 
 export async function fetchStaticModelCatalog({ baseSections = [], apiKey = '', provider = 'opencode' } = {}) {
@@ -456,25 +679,31 @@ export async function fetchStaticModelCatalog({ baseSections = [], apiKey = '', 
 
   // Live discover free non-usage-locked models from CORS-enabled LLM7
   try {
-    const res = await fetch('https://api.llm7.io/v1/models');
+    const res = await fetch('https://api.llm7.io/v1/models', {
+      referrerPolicy: 'no-referrer',
+      signal: AbortSignal.timeout?.(3500),
+    });
     if (res.ok) {
       const data = await res.json();
+      const skipStalled = new Set(['minimax-m2.7', 'DeepSeek-V4-Flash-0731']);
       for (const m of data?.data || []) {
-        if (m.usage_based_only) continue;
+        if (m.usage_based_only || skipStalled.has(m.id)) continue;
         const key = `llm7:${m.id}`;
         if (!m.id || seen.has(key)) continue;
         seen.add(key);
+        const supportsReason = Boolean(m.capabilities?.reasoning);
+        if (supportsReason) LLM7_REASONING_MODELS.add(m.id);
         webModels.push({
           id: m.id,
-          name: `${m.id} (LLM7 Free)`,
+          name: `${m.id} (LLM7)`,
           provider: 'llm7',
           free: true,
-          reasoning: Boolean(m.capabilities?.reasoning || m.reasoning),
+          reasoning: supportsReason,
           tools: Boolean(m.capabilities?.tools ?? m.tools_calling),
           supportsVariant: false,
           multimodal: Boolean(m.capabilities?.vision),
           context: m.context_window?.tokens || 128000,
-          description: 'Canlı LLM7 ücretsiz tarayıcı modeli',
+          description: 'Canlı LLM7 ücretsiz tarayıcı modeli (kendi token\'ınla kişisel limit)',
         });
       }
     }
@@ -484,7 +713,7 @@ export async function fetchStaticModelCatalog({ baseSections = [], apiKey = '', 
   let opencodeFree = baseSections.find(s => s.key === 'opencode_free')?.models || [];
   let opencodePro = [];
   try {
-    const res = await fetch('https://opencode.ai/zen/v1/models');
+    const res = await fetch('https://opencode.ai/zen/v1/models', { signal: AbortSignal.timeout?.(3500) });
     if (res.ok) {
       const data = await res.json();
       const parsed = (data?.data || []).filter(m => m.id).map(m => ({
@@ -567,7 +796,9 @@ export async function fetchStaticModelCatalog({ baseSections = [], apiKey = '', 
     opencodeAvailable: false,
     ollamaOnline,
     sections: [
-      { key: 'web_free', label: 'Ücretsiz Web Havuzu (GitHub Pages Hazır)', models: webModels },
+      { key: 'browser_free', label: 'Tarayıcı İçi Yerel AI (%100 Kişiye Özel Limitsiz)', models: BROWSER_LOCAL_MODELS },
+      { key: 'web_free', label: 'Ücretsiz Web Havuzu (Pollinations & LLM7)', models: webModels },
+      { key: 'groq', label: 'Groq (Ücretsiz Kendi Anahtarın · Kişisel Limit)', models: GROQ_MODELS },
       { key: 'opencode_free', label: 'OpenCode Zen Ücretsiz (Yerel + Oto Yedek)', models: opencodeFree },
       ...(opencodePro.length ? [{ key: 'opencode_pro', label: 'OpenCode Tüm Modeller (Go/Key)', models: opencodePro }] : []),
       {

@@ -10,16 +10,25 @@
  */
 import { store } from '../store.js';
 import { sound } from '../audio.js';
-import { runBrowserChat, fetchStaticModelCatalog, transcribeBrowserGemini, WEB_FREE_MODELS } from '../client-ai.js';
+import {
+  runBrowserChat,
+  fetchStaticModelCatalog,
+  transcribeBrowserGemini,
+  BROWSER_LOCAL_MODELS,
+  GROQ_MODELS,
+  WEB_FREE_MODELS,
+} from '../client-ai.js';
 
 const { S, step, clamp, register, svg } = window.Motion;
 
 const TRACK_NAMES = ['Gece Yağmuru', 'Obsidian Lo-Fi', 'Derin Yörünge', 'Atölye Şöminesi'];
 
 const PROVIDER_META = {
+  browser: { label: 'Tarayıcı İçi Yerel AI', short: 'Yerel AI', needsKey: false, needsUrl: false, defaultModel: 'onnx-community/Qwen2.5-0.5B-Instruct' },
   opencode: { label: 'OpenCode Zen', short: 'OpenCode', needsKey: false, needsUrl: false, defaultModel: 'mimo-v2.6-flash-free' },
   llm7: { label: 'LLM7 Ücretsiz', short: 'LLM7', needsKey: false, needsUrl: false, defaultModel: 'codestral-latest' },
   pollinations: { label: 'Pollinations', short: 'Pollinations', needsKey: false, needsUrl: false, defaultModel: 'openai-fast' },
+  groq: { label: 'Groq Cloud (Ücretsiz)', short: 'Groq', needsKey: true, needsUrl: false, defaultModel: 'llama-3.3-70b-versatile' },
   gemini: { label: 'Google Gemini', short: 'Gemini', needsKey: true, needsUrl: false, defaultModel: 'gemini-2.5-flash' },
   openai: { label: 'OpenAI', short: 'OpenAI', needsKey: true, needsUrl: false, defaultModel: 'gpt-4o-mini' },
   openrouter: { label: 'OpenRouter', short: 'OpenRouter', needsKey: true, needsUrl: false, defaultModel: 'anthropic/claude-sonnet-4' },
@@ -52,9 +61,19 @@ const SUGGESTIONS = [
 // Clean fallback catalog until /api/models or client discovery resolves
 const INITIAL_SECTIONS = [
   {
+    key: 'browser_free',
+    label: 'Tarayıcı İçi Yerel AI (%100 Kişiye Özel Limitsiz)',
+    models: BROWSER_LOCAL_MODELS,
+  },
+  {
     key: 'web_free',
-    label: 'Ücretsiz Web Havuzu (GitHub Pages Hazır)',
+    label: 'Ücretsiz Web Havuzu (Pollinations & LLM7)',
     models: WEB_FREE_MODELS,
+  },
+  {
+    key: 'groq',
+    label: 'Groq (Ücretsiz Kendi Anahtarın · Kişisel Limit)',
+    models: GROQ_MODELS,
   },
   {
     key: 'opencode_free',
@@ -194,7 +213,7 @@ export function mountAI(container) {
         <div class="ai-config-drawer" id="ai-config-drawer" hidden>
           <div class="cfg-drawer-head">
             <span class="mono" id="cfg-drawer-provider">SAĞLAYICI AYARLARI</span>
-            <span class="cfg-hint">OpenCode Zen ve Pollinations için anahtar gerekmez.</span>
+            <span class="cfg-hint">Her kullanıcının limiti tamamen kendi tarayıcısına/anahtarına özeldir (yerel saklanır).</span>
           </div>
           <div class="cfg-grid">
             <label class="cfg-field" id="cfg-key-wrap">
@@ -279,6 +298,9 @@ export function mountAI(container) {
 
             <div class="pf-actions">
               <span class="prompt-status-dot" id="ai-status-note">Hazır · OpenCode Zen &amp; Harness</span>
+              <button class="btn-stop stop-harness-btn" id="ai-stop-btn" type="button" hidden>
+                <span>■ Durdur</span>
+              </button>
               <button class="btn-primary send-harness-btn" id="ai-send-btn" type="button">
                 <span>Gönder</span>
                 <kbd>↵</kbd>
@@ -376,6 +398,7 @@ export function mountAI(container) {
   const ghostPrefix = container.querySelector('#ghost-prefix');
   const ghostLetters = container.querySelector('#ghost-letters');
   const statusNote = container.querySelector('#ai-status-note');
+  const stopBtn = container.querySelector('#ai-stop-btn');
   const sendBtn = container.querySelector('#ai-send-btn');
 
   // Modal Elements
@@ -392,6 +415,8 @@ export function mountAI(container) {
   let pendingToolBatch = null;
   let thinking = false;
   let busySending = false;
+  let activeAbortCtrl = null;
+  let abortRequested = false;
   let sections = structuredClone(INITIAL_SECTIONS);
   let activeModalTab = 'all';
   let ollamaOnline = false;
@@ -425,7 +450,13 @@ export function mountAI(container) {
         id: c.model,
         name: c.model,
         provider: c.provider,
-        free: c.provider === 'opencode' && (c.model.endsWith('-free') || c.model === 'big-pickle') || c.provider === 'pollinations' || c.provider === 'ollama',
+        free:
+          (c.provider === 'opencode' && (c.model.endsWith('-free') || c.model === 'big-pickle')) ||
+          c.provider === 'browser' ||
+          c.provider === 'pollinations' ||
+          c.provider === 'llm7' ||
+          c.provider === 'groq' ||
+          c.provider === 'ollama',
         reasoning: false,
         context: 128000,
       }
@@ -496,9 +527,12 @@ export function mountAI(container) {
     effortBtns.forEach(b => b.classList.toggle('active', b.dataset.effort === c.effort));
 
     cfgDrawerProvider.textContent = `${pmeta.label.toUpperCase()} AYARLARI`;
-    cfgKeyLabel.textContent = `${pmeta.label} API Anahtarı (Tarayıcıda Yerel Saklanır)`;
+    const isOptionalPersonalKey = c.provider === 'pollinations' || c.provider === 'llm7';
+    cfgKeyLabel.textContent = isOptionalPersonalKey
+      ? `${pmeta.label} İsteğe Bağlı Kişisel Token (Kendi Limitin İçin)`
+      : `${pmeta.label} API Anahtarı (Tarayıcıda Yerel Saklanır)`;
     cfgApiKey.value = c.apiKeys[c.provider] || '';
-    const hideKey = c.provider === 'opencode' || c.provider === 'pollinations' || c.provider === 'llm7' || c.provider === 'ollama';
+    const hideKey = c.provider === 'browser' || c.provider === 'opencode' || c.provider === 'ollama';
     cfgKeyWrap.style.display = hideKey ? 'none' : 'flex';
     cfgUrlWrap.style.display = pmeta.needsUrl || c.provider === 'openai' ? 'flex' : 'none';
   }
@@ -567,13 +601,17 @@ export function mountAI(container) {
       ...sections.map(sec => ({
         key: sec.key,
         label:
-          sec.key === 'web_free'
-            ? 'Ücretsiz Web'
-            : sec.key === 'opencode_free'
-              ? 'OpenCode Ücretsiz'
-              : sec.key === 'opencode_pro'
-                ? 'OpenCode Pro'
-                : sec.label,
+          sec.key === 'browser_free'
+            ? 'Tarayıcı İçi AI (Limitsiz)'
+            : sec.key === 'web_free'
+              ? 'Ücretsiz Web'
+              : sec.key === 'groq'
+                ? 'Groq (Kişisel)'
+                : sec.key === 'opencode_free'
+                  ? 'OpenCode Ücretsiz'
+                  : sec.key === 'opencode_pro'
+                    ? 'OpenCode Pro'
+                    : sec.label,
         count: (sec.models || []).length,
       })),
     ];
@@ -736,6 +774,9 @@ export function mountAI(container) {
     if (e.key === 'Escape' && modalBackdrop.classList.contains('open')) {
       e.preventDefault();
       closeModelModal();
+    } else if (e.key === 'Escape' && busySending) {
+      e.preventDefault();
+      stopActiveRequest();
     } else if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'm') {
       e.preventDefault();
       if (modalBackdrop.classList.contains('open')) closeModelModal();
@@ -1072,12 +1113,23 @@ export function mountAI(container) {
     return new Date().toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' });
   }
 
+  function stopActiveRequest() {
+    if (!busySending) return;
+    abortRequested = true;
+    statusNote.textContent = 'İstek durduruluyor...';
+    activeAbortCtrl?.abort(new Error('İstek kullanıcı tarafından durduruldu.'));
+  }
+
+  stopBtn.addEventListener('click', stopActiveRequest);
+
   // ---- Main Harness Chat Execution ----
   async function sendMessage(rawPrompt) {
     const text = (rawPrompt || aiInput.value).trim();
     if (!text || busySending) return;
 
     busySending = true;
+    abortRequested = false;
+    activeAbortCtrl = new AbortController();
     aiInput.value = '';
     updateGhost();
     toolApproval.hidden = true;
@@ -1094,11 +1146,13 @@ export function mountAI(container) {
     window.Motion?.wake?.();
     gooThinkRow.classList.add('active');
     thinkShimmer.textContent = `${c.model} · Efor: ${getEffortLabel(c.effort)} · Yürütülüyor...`;
-    statusNote.textContent = 'Model çalıştırılıyor...';
+    statusNote.textContent = 'Model çalıştırılıyor... (Durdurmak için Esc veya Durdur)';
     store.emit('ai-state', 'thinking');
     store.incrementAiRuns();
     runsChip.textContent = `İstek: ${store.state.aiRuns}`;
     sendBtn.disabled = true;
+    sendBtn.hidden = true;
+    stopBtn.hidden = false;
 
     try {
       const payload = {
@@ -1116,13 +1170,14 @@ export function mountAI(container) {
       let resOk = false;
       let data = null;
 
-      // 1. Use local Python bridge if available (OpenCode Zen + Whisper)
-      if (localBridgeOnline) {
+      // 1. Use local Python bridge if available (except 100% client-side 'browser' WebGPU/WASM engine)
+      if (localBridgeOnline && c.provider !== 'browser') {
         try {
           const res = await fetch('/api/chat', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload),
+            signal: activeAbortCtrl.signal,
           });
           const ctype = res.headers.get('content-type') || '';
           if (ctype.includes('application/json')) {
@@ -1131,14 +1186,26 @@ export function mountAI(container) {
           } else if (res.status === 404 || res.status === 405 || res.status === 502) {
             localBridgeOnline = false;
           }
-        } catch {
+        } catch (bridgeErr) {
+          if (abortRequested || bridgeErr?.name === 'AbortError' || activeAbortCtrl.signal.aborted) {
+            throw bridgeErr;
+          }
           localBridgeOnline = false;
         }
       }
 
-      // 2. Browser-Direct execution for GitHub Pages / static hosts (and failover)
+      // 2. Browser-Direct execution for GitHub Pages / static hosts & client-side WebGPU/WASM
       if (!data) {
-        data = await runBrowserChat(payload);
+        data = await runBrowserChat({
+          ...payload,
+          signal: activeAbortCtrl.signal,
+          onProgress: note => {
+            if (!abortRequested && busySending) {
+              statusNote.textContent = note;
+              thinkShimmer.textContent = note;
+            }
+          },
+        });
         resOk = Boolean(data?.ok);
       }
 
@@ -1215,6 +1282,21 @@ export function mountAI(container) {
       syncOrbLiveClass();
       gooThinkRow.classList.remove('active');
       store.emit('ai-state', 'idle');
+
+      if (abortRequested || err?.name === 'AbortError' || activeAbortCtrl?.signal?.aborted) {
+        store.state.chatHistory.push({
+          role: 'assistant',
+          provider: 'atelier',
+          model: 'harness',
+          content: 'İstek kullanıcı tarafından durduruldu.',
+          time: nowTimeStr(),
+        });
+        store.persist();
+        renderChatFeed();
+        statusNote.textContent = 'İstek durduruldu';
+        return;
+      }
+
       const detail = err?.message ? ` (${err.message})` : '';
       store.state.chatHistory.push({
         role: 'assistant',
@@ -1229,8 +1311,14 @@ export function mountAI(container) {
     } finally {
       thinking = false;
       syncOrbLiveClass();
+      gooThinkRow.classList.remove('active');
+      store.emit('ai-state', 'idle');
       busySending = false;
+      activeAbortCtrl = null;
+      abortRequested = false;
       sendBtn.disabled = false;
+      sendBtn.hidden = false;
+      stopBtn.hidden = true;
     }
   }
 
