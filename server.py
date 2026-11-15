@@ -25,9 +25,9 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
 PORT = int(os.environ.get("ATELIER_PORT", "4173"))
-OPENCODE_BIN = shutil.which("opencode") or "/home/exist/.opencode/bin/opencode"
+OPENCODE_BIN = shutil.which("opencode") or str(Path.home() / ".opencode/bin/opencode")
 FFMPEG_BIN = shutil.which("ffmpeg") or "/usr/bin/ffmpeg"
-ASR_ROOT = Path("/home/exist/.cache/atelier-os-asr")
+ASR_ROOT = Path.home() / ".cache/atelier-os-asr"
 WHISPER_CLI = ASR_ROOT / "whisper.cpp/build/bin/whisper-cli"
 WHISPER_MODEL_FAST = ASR_ROOT / "models/ggml-tiny-q5_1.bin"
 WHISPER_MODEL_ACC = ASR_ROOT / "models/ggml-base-q5_1.bin"
@@ -432,7 +432,7 @@ def extract_inline_actions(text):
 
 def run_opencode_single(model_id, effort, messages, app_state, agent_mode="build"):
     if not os.path.exists(OPENCODE_BIN):
-        raise RuntimeError("OpenCode CLI bulunamadı (/home/exist/.opencode/bin/opencode)")
+        raise RuntimeError("OpenCode CLI bulunamadı (~/.opencode/bin/opencode)")
 
     zen_list = fetch_opencode_zen_catalog()
     meta = next((m for m in zen_list if m["id"] == model_id), None)
